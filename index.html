@@ -772,30 +772,23 @@ function initSync(){
 }
 
 function pullSync(){
-  if(!S.jsonbinKey) return;
-  var url = S.jsonbinBinId 
-    ? 'https://api.jsonbin.io/v3/b/' + S.jsonbinBinId + '/latest'
-    : null;
-  if(!url){ createBin(); return; }
-  fetch(url, {
+  if(!S.jsonbinKey || !S.jsonbinBinId) return;
+  fetch('https://api.jsonbin.io/v3/b/' + S.jsonbinBinId + '/latest', {
     headers: { 'X-Master-Key': S.jsonbinKey }
   }).then(function(r){ return r.json(); }).then(function(data){
     if(data && data.record){
       var remote = data.record;
-      var localDate = S.lastReset;
-      var remoteDate = remote.lastReset;
-      // Use whichever has more recent data (same day = merge calories)
-      if(remoteDate === new Date().toDateString()){
-        // Take remote data but keep local if it has more calories logged
-        if((remote.calories||0) >= (S.calories||0)){
-          var binId = S.jsonbinBinId;
-          var jk = S.jsonbinKey;
-          S = Object.assign({}, S, remote);
-          S.jsonbinBinId = binId;
-          S.jsonbinKey = jk;
-          save();
-          render();
-        }
+      var binId = S.jsonbinBinId;
+      var jk = S.jsonbinKey;
+      // Always take remote if it has more calories or same day data
+      if((remote.calories||0) > (S.calories||0) || (remote.log && remote.log.length > (S.log||[]).length)){
+        S = Object.assign({}, S, remote);
+        S.jsonbinBinId = binId;
+        S.jsonbinKey = jk;
+        localStorage.setItem('ditty_v3', JSON.stringify(S));
+        render();
+        var ss = document.getElementById('sync-status');
+        if(ss){ ss.textContent = 'synced ✓'; setTimeout(function(){ ss.textContent=''; }, 3000); }
       }
     }
   }).catch(function(){});
