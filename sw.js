@@ -1,4 +1,4 @@
-var CACHE_NAME = 'ditty-v3';
+var CACHE_NAME = 'ditty-v5';
 var URLS_TO_CACHE = [
   '/ditty-app/',
   '/ditty-app/index.html',
@@ -37,6 +37,20 @@ self.addEventListener('activate', function(event) {
 
 self.addEventListener('fetch', function(event) {
   var url = event.request.url;
+
+  // Always network-first for HTML pages
+  if (url.indexOf('.html') !== -1 || url.endsWith('/ditty-app/') || url.endsWith('/ditty-app')) {
+    event.respondWith(
+      fetch(event.request).then(function(networkResponse) {
+        var clone = networkResponse.clone();
+        caches.open(CACHE_NAME).then(function(cache) { cache.put(event.request, clone); });
+        return networkResponse;
+      }).catch(function() {
+        return caches.match(event.request);
+      })
+    );
+    return;
+  }
 
   // Always go network-first for API calls
   if (url.indexOf('openai.com') !== -1 ||

@@ -1946,6 +1946,11 @@ function adjReps(key,delta,prog,d){
   if(el)el.textContent=workoutSets[key].reps;
 }
 
+function toggleDay(id){
+  var el=document.getElementById('day-body-'+id);
+  if(el)el.classList.toggle('open');
+}
+
 function toggleSetDone(key,prog,d){
   if(!workoutSets[key])workoutSets[key]={reps:10,weight:'',done:false};
   // Capture current weight from input before toggling
