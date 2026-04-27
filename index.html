@@ -1737,6 +1737,70 @@ function switchToTab(name){
   switchTab(name,found);
 }
 
+/* ── STREAK ── */
+function calcStreak(){
+  if(!S.calHistory)return 0;
+  var streak=0;
+  var d=new Date();
+  var todayHasFood=S.log&&S.log.some(function(l){return l.type==='food';});
+  var todayHasEx=S.log&&S.log.some(function(l){return l.type==='exercise';});
+  var todayHasWeight=S.weightHistory&&S.weightHistory.length>0&&S.weightHistory[0].date===new Date().toLocaleDateString();
+  var todayDone=todayHasFood&&todayHasEx&&todayHasWeight;
+  for(var i=0;i<365;i++){
+    var checkDate=new Date(d);checkDate.setDate(d.getDate()-i);
+    var ds=checkDate.toDateString();
+    if(i===0){if(todayDone)streak++;else break;}
+    else{var entry=S.calHistory[ds];if(entry&&entry.hasFood&&entry.hasEx&&entry.hasWeight)streak++;else break;}
+  }
+  return streak;
+}
+
+function renderStreak(){
+  var streak=calcStreak();
+  var numEl=document.getElementById('streak-num');
+  var lblEl=document.getElementById('streak-label');
+  var subEl=document.getElementById('streak-sub');
+  if(!numEl)return;
+  numEl.textContent=streak;
+  numEl.className='streak-stamp'+(streak===0?' zero':'');
+  if(lblEl)lblEl.textContent='Day Streak';
+  if(subEl){
+    if(streak===0)subEl.textContent='Log food + exercise + weight to start your streak';
+    else if(streak<7)subEl.textContent='Keep it going. '+streak+' day'+(streak>1?'s':'')+' locked in.';
+    else if(streak<30)subEl.textContent='On a roll. '+streak+' days straight.';
+    else subEl.textContent='BEAST MODE. '+streak+' days. Unstoppable.';
+  }
+}
+
+/* ── 7-DAY CAL CHART ── */
+function renderCalChart(){
+  var el=document.getElementById('cal-chart');
+  if(!el)return;
+  if(!S.calHistory)S.calHistory={};
+  var days=['Su','Mo','Tu','We','Th','Fr','Sa'];
+  var data=[];var maxCal=CAL_GOAL;
+  for(var i=6;i>=0;i--){
+    var d=new Date();d.setDate(d.getDate()-i);
+    var ds=d.toDateString();var dayLbl=days[d.getDay()];var isToday=(i===0);
+    var cal=isToday?S.calories:(S.calHistory[ds]?S.calHistory[ds].cal||0:0);
+    if(cal>maxCal)maxCal=cal;
+    data.push({lbl:dayLbl,cal:cal,isToday:isToday});
+  }
+  var html='';
+  for(var i=0;i<data.length;i++){
+    var d=data[i];
+    var pct=maxCal>0?Math.round((d.cal/maxCal)*100):0;
+    var cls=d.cal===0?'chart-bar empty':(d.cal<=CAL_GOAL?'chart-bar good':'chart-bar');
+    var style='height:'+pct+'%;';
+    if(d.isToday)style+='border:1px solid #1a0d00;';
+    html+='<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">';
+    html+='<div class="'+cls+'" style="'+style+'width:100%;"></div>';
+    html+='<div style="font-family:\'Courier Prime\',monospace;font-size:7px;color:'+(d.isToday?'#b81c1c':'#7a6040')+';margin-top:2px;">'+(d.isToday?'<b>':'')+d.lbl+(d.isToday?'</b>':'')+'</div>';
+    html+='</div>';
+  }
+  el.innerHTML=html;
+}
+
 /* ── STEPS ── */
 function renderSteps(){
   var el=document.getElementById('stat-steps');
