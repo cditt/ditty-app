@@ -2191,7 +2191,8 @@ var PROGRAMS={
         {name:'Tricep Pushdowns',sets:3,reps:'12-15'},
         {name:'Overhead Tricep Ext.',sets:3,reps:'10-12'}
       ]},
-      {name:'Tuesday',type:'Pull',rest:false,exercises:[
+      {name:'Tuesday',type:'Rest \u26f3 Golf',rest:true,exercises:[]},
+      {name:'Wednesday',type:'Pull',rest:false,exercises:[
         {name:'Barbell Row',sets:4,reps:'8-10'},
         {name:'Lat Pulldown',sets:3,reps:'10-12'},
         {name:'Seated Cable Row',sets:3,reps:'10-12'},
@@ -2199,7 +2200,6 @@ var PROGRAMS={
         {name:'Dumbbell Curl',sets:3,reps:'10-12'},
         {name:'Hammer Curl',sets:3,reps:'10-12'}
       ]},
-      {name:'Wednesday',type:'Rest',rest:true,exercises:[]},
       {name:'Thursday',type:'Legs',rest:false,exercises:[
         {name:'Squat',sets:4,reps:'8-10'},
         {name:'Romanian Deadlift',sets:3,reps:'10-12'},
@@ -2376,15 +2376,37 @@ function renderWorkoutProgram(prog){
   if(!el)return;
   var program=PROGRAMS[prog];
   if(!program){el.innerHTML='<p class="log-empty">Program not found.</p>';return;}
-  var todayDow=new Date().getDay();
+  var todayDow=(new Date().getDay()+6)%7;// Convert: Sun=0->6, Mon=1->0, Tue=2->1, etc.
   var html='';
   for(var d=0;d<program.days.length;d++){
     var day=program.days[d];
     var isToday=(d===todayDow);
-    var bgStyle=isToday?'background:#fff8e8;':'';
+    var dayDate=new Date();
+    dayDate.setDate(dayDate.getDate()-(todayDow-d));
+    var dayStr=dayDate.toLocaleDateString();
+    var isPast=d<todayDow;
+    var bgStyle='';
+    if(isToday){
+      bgStyle='background:#fff8e8;';
+    }else if(!day.rest&&isPast){
+      // Check if workout was logged this week for this day type
+      var wasCompleted=false;
+      if(S.workoutHistory){
+        for(var h=0;h<S.workoutHistory.length;h++){
+          var sess=S.workoutHistory[h];
+          if(sess.date===dayStr&&sess.type===day.type){wasCompleted=true;break;}
+        }
+      }
+      bgStyle=wasCompleted?'background:#e8f5e8;border-color:#2a7a2a;':'background:#fde8e8;border-color:#b81c1c;';
+    }
     html+='<div class="day-card" style="'+bgStyle+'">';
     html+='<div class="day-header" onclick="toggleDay(\''+prog+'-'+d+'\')">';
-    html+='<div><div class="day-name">'+(isToday?'&#9654; ':'')+day.name+'</div>';
+    var dayPrefix=isToday?'&#9654; ':'';
+    if(!day.rest&&isPast){
+      var wasDone=bgStyle.indexOf('#e8f5e8')!==-1;
+      dayPrefix=wasDone?'&#10003; ':'&#10005; ';
+    }
+    html+='<div><div class="day-name">'+dayPrefix+day.name+'</div>';
     html+='<div class="day-type">'+day.type+'</div></div>';
     if(day.rest){
       html+='<div style="font-family:\'Special Elite\',cursive;font-size:11px;color:#7a6040;letter-spacing:2px;text-transform:uppercase;">REST</div>';
