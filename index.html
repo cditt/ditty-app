@@ -1770,11 +1770,16 @@ function pullSync(){
     if(data&&data.record){
       var remote=data.record;
       var binId=S.jsonbinBinId;var jk=S.jsonbinKey;
+      var today=new Date().toDateString();
+      // Only pull if remote is from TODAY — prevents yesterday's JSONBin wiping today's fresh data
+      if(remote.lastReset!==today)return;
       if((remote.calories||0)>(S.calories||0)||(remote.log&&remote.log.length>(S.log||[]).length)){
         S=Object.assign({},S,remote);
         S.jsonbinBinId=binId;S.jsonbinKey=jk;
         if(!S.pills||S.pills.length===0)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
         if(!S.savedFoods)S.savedFoods=[];
+        if(!S.workoutSets)S.workoutSets={};
+        workoutSets=S.workoutSets;
         localStorage.setItem('ditty_v3',JSON.stringify(S));
         render();
         var ss=document.getElementById('sync-status');
@@ -2501,24 +2506,31 @@ function toggleSetDone(key,prog,d){
 }
 
 function logWorkoutToExercise(prog,dayIdx){
-  var day=PROGRAMS[prog].days[dayIdx];
-  var totalSets=0,doneSets=0;
-  for(var e=0;e<day.exercises.length;e++){
-    var ex=day.exercises[e];
-    for(var s=0;s<ex.sets;s++){
-      totalSets++;
-      var key=prog+'-'+dayIdx+'-'+e+'-'+s;
-      if(workoutSets[key]&&workoutSets[key].done)doneSets++;
+  try{
+    var day=PROGRAMS[prog]&&PROGRAMS[prog].days[dayIdx];
+    if(!day){showBanner('Could not find workout day.',true);return;}
+    var totalSets=0,doneSets=0;
+    for(var e=0;e<day.exercises.length;e++){
+      var ex=day.exercises[e];
+      for(var s=0;s<ex.sets;s++){
+        totalSets++;
+        var key=prog+'-'+dayIdx+'-'+e+'-'+s;
+        if(workoutSets[key]&&workoutSets[key].done)doneSets++;
+      }
     }
+    if(doneSets===0){showBanner('Mark at least one set Done first.',true);return;}
+    var burned=Math.round(doneSets*8);
+    var t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    S.burned+=burned;
+    S.log.push({type:'exercise',name:day.type+' ('+doneSets+'/'+totalSets+' sets)',calories:-burned,category:'exercise',time:t});
+    try{saveWorkoutHistory(prog,dayIdx,workoutSets);}catch(e2){console.log('history err',e2);}
+    save();render();
+    switchToTab('home');
+    showBanner('Workout logged: '+day.type+' \u2014 '+doneSets+'/'+totalSets+' sets, ~'+burned+' cal burned',false);
+  }catch(err){
+    showBanner('Error logging workout: '+err.message,true);
+    console.log('logWorkout error:',err);
   }
-  var burned=Math.round(doneSets*8);
-  var t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  S.burned+=burned;
-  S.log.push({type:'exercise',name:day.type+' ('+doneSets+'/'+totalSets+' sets)',calories:-burned,category:'exercise',time:t});
-  saveWorkoutHistory(prog,dayIdx,workoutSets);
-  save();render();
-  switchToTab('home');
-  showBanner('Workout logged: '+day.type+' '+doneSets+'/'+totalSets+' sets, ~'+burned+' cal burned',false);
 }
 
 window.addEventListener('load',function(){
