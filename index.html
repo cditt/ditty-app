@@ -215,10 +215,6 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
         <div class="stat-box"><div class="stat-num" id="stat-burned">0</div><div class="stat-label">cal burned</div></div>
         <div class="stat-box"><div class="stat-num" id="stat-weight">--</div><div class="stat-label">lbs now</div></div>
       </div>
-      <div id="meds-display-card" class="card" style="display:none;">
-        <div class="section-title">Today's Meds</div>
-        <div id="meds-display"></div>
-      </div>
       <div class="card">
         <div class="section-title">Today's Log</div>
         <div id="home-log"><p class="log-empty">Nothing logged yet. Start eating.</p></div>
@@ -360,22 +356,10 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
       </div>
     </div>
 
-    <div id="tab-workouts" class="tab-content">
-      <div class="section-title">Workout Programs</div>
-      <p style="font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;margin-bottom:8px;">Weekly Plan</p>
-      <div class="workout-placeholder" style="margin-bottom:12px;">
-        <span class="wicon">&#x1F94A;</span>
-        <div class="wtext">Your Program Drops Here</div>
-        <div class="wsub">Weekly gym schedule coming soon.</div>
-        <div class="stamp">Under Construction</div>
-      </div>
-      <div class="rule"><div class="rule-line"></div><div class="rule-diamond">&#9670;</div><div class="rule-line"></div></div>
-      <p style="font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;margin-bottom:8px;margin-top:8px;">Workout Library</p>
-      <div class="workout-placeholder">
-        <span class="wicon">&#x1F3CB;&#xFE0F;</span>
-        <div class="wtext">Pick Your Workout</div>
-        <div class="wsub">Individual gym workouts loading in.</div>
-        <div class="stamp">Coming Soon</div>
+    <div id="tab-pills" class="tab-content">
+      <div class="card">
+        <div class="section-title">Today's Meds</div>
+        <div id="meds-display"></div>
       </div>
     </div>
 
@@ -386,7 +370,7 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <button class="nav-btn" onclick="switchTab('log',this)"><span class="nav-icon">&#128172;</span><span class="nav-label">Log</span></button>
     <button class="nav-btn" onclick="switchTab('water',this)"><span class="nav-icon">&#128167;</span><span class="nav-label">Water</span></button>
     <button class="nav-btn" onclick="switchTab('weight',this)"><span class="nav-icon">&#9878;&#65039;</span><span class="nav-label">Weight</span></button>
-    <button class="nav-btn" onclick="switchTab('workouts',this)"><span class="nav-icon">&#x1F94A;</span><span class="nav-label">Workouts</span></button>
+    <button class="nav-btn" onclick="switchTab('pills',this)"><span class="nav-icon">&#128138;</span><span class="nav-label">Pills</span></button>
   </div>
 </div>
 
@@ -431,7 +415,6 @@ function toggleMed(medName){
 
 function renderMeds(){
   var medDisplay=document.getElementById('meds-display');
-  var medsCard=document.getElementById('meds-display-card');
   var meds=['creatine','lisinopril','omeprazole','testosteroneCyp','tadalafil','retartrude'];
   var medLabels={creatine:'Creatine',lisinopril:'Lisinopril',omeprazole:'Omeprazole',testosteroneCyp:'Testosterone Cyp',tadalafil:'Tadalafil',retartrude:'Retartrude'};
   var html='';
@@ -441,7 +424,6 @@ function renderMeds(){
     html+='<button class="med-btn'+(isDone?' med-done':'')+'" onclick="toggleMed(\''+med+'\')">'+((isDone?'\u2713 ':''))+medLabels[med]+'</button>';
   }
   medDisplay.innerHTML=html;
-  medsCard.style.display='block';
 }
 
 function checkReset(){
