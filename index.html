@@ -924,9 +924,9 @@ function updateIF(){
 }
 
 function render(){
-  var net=S.calories-S.burned,rem=CAL_GOAL-net,pct=Math.min((net/CAL_GOAL)*100,100);
-  var ce=document.getElementById('dash-cals');ce.textContent=net;ce.className='cal-number'+(net>CAL_GOAL?' over':'');
-  var bar=document.getElementById('cal-bar');bar.style.width=pct+'%';bar.className='progress-fill'+(net>CAL_GOAL?' over':'');
+  var net=S.calories,rem=CAL_GOAL-S.calories,pct=Math.min((S.calories/CAL_GOAL)*100,100);
+  var ce=document.getElementById('dash-cals');ce.textContent=S.calories;ce.className='cal-number'+(S.calories>CAL_GOAL?' over':'');
+  var bar=document.getElementById('cal-bar');bar.style.width=pct+'%';bar.className='progress-fill'+(S.calories>CAL_GOAL?' over':'');
   document.getElementById('dash-burned-meta').textContent='Burned: '+S.burned;
   var re=document.getElementById('dash-remaining');re.textContent='Left: '+rem;re.className='cal-remaining'+(rem>=0?' good':'');
   document.getElementById('macro-p').textContent=Math.round(S.protein||0);
@@ -2583,7 +2583,7 @@ function logWorkoutToExercise(prog,dayIdx){
       }
     }
     if(doneSets===0){showBanner('Mark at least one set Done first.',true);return;}
-    var burned=Math.round(doneSets*8);
+    var burned=Math.round(doneSets*4);// ~4 cal per set is more realistic for weight training
     var t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
     S.burned+=burned;
     S.log.push({type:'exercise',name:day.type+' ('+doneSets+'/'+totalSets+' sets)',calories:-burned,category:'exercise',time:t});
