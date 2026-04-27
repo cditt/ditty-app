@@ -1921,8 +1921,8 @@ function renderMacroBars(){
 function renderMealBreakdown(){
   var el=document.getElementById('meal-breakdown');
   if(!el)return;
-  var cats=['breakfast','lunch','dinner','snacks','drinks'];
-  var colors=['#1a3a6a','#2a7a2a','#7a4010','#b81c1c','#7a1a7a'];
+  var cats=['breakfast','lunch','dinner','snacks'];
+  var colors=['#1a3a6a','#2a7a2a','#7a4010','#b81c1c'];
   var totals={};
   var max=0;
   for(var i=0;i<cats.length;i++)totals[cats[i]]=0;
