@@ -490,6 +490,11 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
         <div class="pill-widget-row" id="pill-widget"></div>
         <button onclick="switchToTab('pills')" style="width:100%;margin-top:10px;background:none;border:1px dashed #7a6040;color:#7a6040;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:2px;padding:6px;cursor:pointer;text-transform:uppercase;">Manage All Meds &#9658;</button>
       </div>
+      <!-- MOTIVATION CARD -->
+      <div class="card" id="motivation-card" style="background:#1a0d00;border-color:#b81c1c;">
+        <div style="font-family:'Special Elite',cursive;font-size:9px;letter-spacing:3px;color:#e02020;text-transform:uppercase;margin-bottom:8px;">Coach Says</div>
+        <div id="motivation-text" style="font-family:'Courier Prime',monospace;font-size:12px;color:#f0dca8;line-height:1.6;"></div>
+      </div>
       <div class="card">
         <div class="section-title">Today's Log</div>
         <div id="home-log"><p class="log-empty">Nothing logged yet. Start eating.</p></div>
@@ -846,7 +851,7 @@ var DEFAULT_PILLS=[
   {id:5,name:'Tadalafil',dose:'5mg',taken:false,daily:true,injDay:null}
 ];
 
-var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:null,log:[],weightHistory:[],lastReset:null,apiKey:null,pills:null,savedFoods:[],userAge:null,userHeight:null,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],mealPlan:[]};
+var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:null,log:[],weightHistory:[],lastReset:null,apiKey:null,pills:null,savedFoods:[],userAge:null,userHeight:null,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],mealPlan:[],milestonesHit:{}};
 var scannerStream=null,barcodeDetector=null,scanInterval=null,currentProductData=null;
 var currentPhotoItems=null;
 var notifCheckInterval=null;
@@ -993,7 +998,7 @@ function render(){
   document.getElementById('weight-display').textContent=cw.toFixed(1);
   document.getElementById('w-lost').textContent=Math.abs(START_WEIGHT-cw).toFixed(1);
   if(S.goalWeight)document.getElementById('w-togo').textContent=Math.max(cw-S.goalWeight,0).toFixed(1);
-  renderLog();renderHistory();renderPills();renderPillWidget();renderStreak();renderCalChart();renderMacroBars();renderMealBreakdown();renderWeightGraph();renderWorkoutHistory();renderCustomProgramsList();renderSteps();renderWeightStats();renderStreakChecklist();
+  renderLog();renderHistory();renderPills();renderPillWidget();renderStreak();renderCalChart();renderMacroBars();renderMealBreakdown();renderWeightGraph();renderWorkoutHistory();renderCustomProgramsList();renderSteps();renderWeightStats();renderStreakChecklist();renderMotivation();
 }
 
 function renderLog(){
@@ -1496,8 +1501,17 @@ function checkAllReminders(){
     fireNotification('Eating window is OPEN','IF window: 11am - 7pm. Time to eat!',false);
   }
 
-  // IF window close
-  if(h===IF_END&&m<2&&lastIFNotifDay!==dateStr+'-close'){
+  // Morning motivation check-in at 7am
+  if(h===7&&m<2&&lastPillNotifDay!==dateStr+'-morning'){
+    lastPillNotifDay=dateStr+'-morning';
+    var cw=S.weight||START_WEIGHT;
+    var lost=Math.round((START_WEIGHT-cw)*10)/10;
+    var streak=calcStreak();
+    var morningMsg='Day '+streak+' streak. '+lost+'lbs gone. '+(S.goalWeight?(Math.max(cw-S.goalWeight,0).toFixed(1)+'lbs to go. '):'')+'Log your food today.';
+    fireNotification('Good morning, Ditty.',morningMsg,false);
+  }
+  // Check milestones
+  checkMilestones();
     lastIFNotifDay=dateStr+'-close';
     fireNotification('Eating window CLOSED','No more food until 11am tomorrow.',true);
   }
@@ -2137,6 +2151,67 @@ function renderMealPlan(){
   }
   if(!html)html='<div class="card"><p class="log-empty">No meals planned yet. Add meals below.</p></div>';
   el.innerHTML=html;
+}
+
+/* ── MOTIVATION ── */
+var MILESTONES_HIT={};
+
+function checkMilestones(){
+  var cw=S.weight||START_WEIGHT;
+  var lost=Math.round((START_WEIGHT-cw)*10)/10;
+  var streak=calcStreak();
+  var msgs=[];
+  // Weight milestones
+  var wtMilestones=[1,2,5,10,15,20,25,30,40,47.2];
+  for(var i=0;i<wtMilestones.length;i++){
+    var m=wtMilestones[i];
+    if(lost>=m&&!S.milestonesHit['wt'+m]){
+      if(!S.milestonesHit)S.milestonesHit={};
+      S.milestonesHit['wt'+m]=true;
+      msgs.push('&#127942; '+m+' lbs GONE. That\'s not luck, that\'s work. Keep going.');
+      save();
+    }
+  }
+  // Streak milestones
+  var streakMilestones=[3,7,14,21,30];
+  for(var i=0;i<streakMilestones.length;i++){
+    var m=streakMilestones[i];
+    if(streak>=m&&!S.milestonesHit['streak'+m]){
+      if(!S.milestonesHit)S.milestonesHit={};
+      S.milestonesHit['streak'+m]=true;
+      msgs.push('&#128293; '+m+'-day streak. Most people quit by now. You didn\'t.');
+      save();
+    }
+  }
+  if(msgs.length>0){
+    showBanner(msgs[0],false);
+    if(S.notifEnabled&&'Notification' in window&&Notification.permission==='granted'){
+      try{new Notification('Ditty\'s Fat Journey',{body:msgs[0].replace(/&#[0-9]+;/g,'')});}catch(e){}
+    }
+  }
+}
+
+function renderMotivation(){
+  var el=document.getElementById('motivation-text');
+  if(!el)return;
+  var cals=S.calories||0;
+  var over=cals-CAL_GOAL;
+  var msg='';
+  if(over>300){
+    msg='&#128561; '+over+' cal over your limit. That\'s not a slip, that\'s a choice. Own it and do better tomorrow.';
+  }else if(over>0&&over<=300){
+    msg='&#9888; '+over+' cal over. You can recover from this. Don\'t make it worse.';
+  }else if(cals>0&&(CAL_GOAL-cals)<200){
+    msg='&#128293; '+(CAL_GOAL-cals)+' cal left. Lock it in. Don\'t blow it in the last hour.';
+  }else{
+    // No trash talk needed — hide the card
+    var card=document.getElementById('motivation-card');
+    if(card)card.style.display='none';
+    return;
+  }
+  var card=document.getElementById('motivation-card');
+  if(card)card.style.display='block';
+  el.innerHTML=msg;
 }
 
 /* ── IMPROVED AI CHAT ── */
