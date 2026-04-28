@@ -415,7 +415,7 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <div class="header-inner">
       <div>
         <div class="header-title">Ditty's Fat Journey</div>
-        <div class="header-sub">11am &ndash; 7pm &middot; IF Window &middot; <span id="sync-status"></span></div>
+        <div class="header-sub">11am &ndash; 7pm &middot; IF Window &middot; <span id="sync-status"></span> <span id="force-sync-btn" onclick="forcePushSync()" style="cursor:pointer;color:#f0dca8;text-decoration:underline;font-size:9px;">sync</span></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div id="if-pill" class="if-pill if-closed">Closed</div>
@@ -1872,6 +1872,24 @@ function resetSteps(){
   S.steps=0;save();renderSteps();
 }
 
+function forcePushSync(){
+  S.workoutSets=workoutSets;
+  var ss=document.getElementById('sync-status');
+  if(ss)ss.textContent='pushing...';
+  if(!S.jsonbinKey){if(ss)ss.textContent='no sync key';return;}
+  if(!S.jsonbinBinId){createBin();return;}
+  fetch('https://api.jsonbin.io/v3/b/'+S.jsonbinBinId,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','X-Master-Key':S.jsonbinKey},
+    body:JSON.stringify(S)
+  }).then(function(){
+    try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+    if(ss)ss.textContent='pushed \u2713';
+    setTimeout(function(){if(ss)ss.textContent='';},3000);
+    showBanner('Data pushed to cloud \u2014 phone will update in 30s',false);
+  }).catch(function(){if(ss)ss.textContent='push failed';});
+}
+
 /* ── CLOUD SYNC ── */
 function initSync(){
   if(!S.jsonbinKey)return;
@@ -2745,6 +2763,9 @@ function setSetWeight(key,prog,d,val){
   workoutSets[key].weight=val;
   S.workoutSets=workoutSets;
   try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+  // Debounce push to cloud - don't push on every keystroke, only after 1.5s of inactivity
+  if(window._weightPushTimer)clearTimeout(window._weightPushTimer);
+  window._weightPushTimer=setTimeout(function(){pushSync();},1500);
 }
 
 function adjReps(key,delta,prog,d){
@@ -2753,6 +2774,7 @@ function adjReps(key,delta,prog,d){
   workoutSets[key].reps=Math.max(0,cur+delta);
   S.workoutSets=workoutSets;
   try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+  pushSync();
   var el=document.getElementById('reps-'+key);
   if(el)el.textContent=workoutSets[key].reps;
 }
@@ -2768,13 +2790,12 @@ function toggleSetDone(key,prog,d){
   if(inp)workoutSets[key].weight=inp.value;
   workoutSets[key].done=!workoutSets[key].done;
   S.workoutSets=workoutSets;
-  try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+  save();// full save + pushSync to cloud
   // Preserve open days before re-render
   var openDays={};
   var bodies=document.querySelectorAll('[id^="day-body-"]');
   for(var i=0;i<bodies.length;i++){if(bodies[i].classList.contains('open'))openDays[bodies[i].id]=true;}
   renderWorkoutProgram(prog);
-  // Restore open days (don't auto-jump to today)
   for(var id in openDays){var el=document.getElementById(id);if(el)el.classList.add('open');}
 }
 
