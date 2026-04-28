@@ -1512,6 +1512,9 @@ function checkAllReminders(){
   }
   // Check milestones
   checkMilestones();
+
+  // IF window close
+  if(h===IF_END&&m<2&&lastIFNotifDay!==dateStr+'-close'){
     lastIFNotifDay=dateStr+'-close';
     fireNotification('Eating window CLOSED','No more food until 11am tomorrow.',true);
   }
