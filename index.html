@@ -35,8 +35,8 @@ body{font-family:'Courier Prime',monospace;background-color:#f0dca8;background-i
 .bottom-nav{background:#1a0d00;display:flex;border-top:3px solid #b81c1c;flex-shrink:0;padding-bottom:env(safe-area-inset-bottom);position:sticky;bottom:0;z-index:100;}
 .nav-btn{flex:1;background:none;border:none;padding:8px 1px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:#6b5030;font-family:'Special Elite',cursive;min-height:50px;}
 .nav-btn.active{color:#e02020;}
-.nav-icon{font-size:15px;line-height:1;}
-.nav-label{font-size:7px;letter-spacing:1px;text-transform:uppercase;}
+.nav-icon{font-size:13px;line-height:1;}
+.nav-label{font-size:6px;letter-spacing:1px;text-transform:uppercase;}
 .section-title{font-family:'Special Elite',cursive;font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#7a1010;border-bottom:1px solid #2a1600;padding-bottom:5px;margin-bottom:10px;}
 .card{background:#fdf6e0;border:2px solid #2a1600;padding:12px;margin-bottom:10px;position:relative;}
 .card::after{content:'';position:absolute;top:3px;left:3px;right:-3px;bottom:-3px;background:#2a1600;z-index:-1;}
@@ -461,7 +461,8 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
             <div class="streak-days" id="streak-label">Day Streak</div>
           </div>
           <div class="streak-info">
-            <div class="streak-sub" id="streak-sub">Log food + exercise to build your streak</div>
+            <div class="streak-sub" id="streak-sub">Log food + exercise + weight to start your streak</div>
+            <div id="streak-checklist" style="margin-top:6px;font-family:'Courier Prime',monospace;font-size:10px;line-height:1.8;"></div>
           </div>
         </div>
         <div style="font-family:'Special Elite',cursive;font-size:9px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;margin-top:10px;margin-bottom:4px;">7-Day Calories</div>
@@ -659,7 +660,6 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <div id="tab-weight" class="tab-content">
       <div class="card">
         <div class="section-title">Weight Tracker</div>
-        <!-- Scale display -->
         <div class="wg-scale">
           <div style="text-align:center;">
             <div class="wg-start" id="wg-start">252.2</div>
@@ -679,11 +679,26 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
           <div class="stat-box"><div class="stat-num" id="w-lost">0.0</div><div class="stat-label">Lost</div></div>
           <div class="stat-box"><div class="stat-num" id="w-togo">--</div><div class="stat-label">To Go</div></div>
         </div>
-        <!-- Graph button -->
         <button onclick="openWeightGraph()" style="width:100%;background:#1a0d00;color:#f0dca8;border:2px solid #b81c1c;font-family:'Special Elite',cursive;font-size:12px;letter-spacing:2px;padding:12px;cursor:pointer;text-transform:uppercase;margin-bottom:12px;">&#128200; View Progress Graph</button>
         <label>Log Today's Weight</label>
         <input type="number" id="weight-input" placeholder="e.g. 249.5" step="0.1">
         <button class="btn-primary" onclick="saveWeight()">Save Weight</button>
+      </div>
+      <!-- WEIGHT STATS CARD -->
+      <div class="card">
+        <div class="section-title">Body Stats</div>
+        <div id="weight-stats-content">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+            <div class="stat-box"><div class="stat-num" id="ws-bmi">--</div><div class="stat-label">BMI</div></div>
+            <div class="stat-box"><div class="stat-num" id="ws-bf">--%</div><div class="stat-label">Est. Body Fat</div></div>
+            <div class="stat-box"><div class="stat-num" id="ws-rate">-- lb</div><div class="stat-label">/ Week</div></div>
+            <div class="stat-box"><div class="stat-num" id="ws-proj">--</div><div class="stat-label">Goal Date</div></div>
+          </div>
+          <div style="background:#f0dca8;border:1px solid #2a1600;padding:8px;font-family:'Courier Prime',monospace;font-size:10px;color:#1a0d00;line-height:1.8;">
+            <div>&#9660; vs Last Week: <strong id="ws-lastweek">--</strong></div>
+            <div>Deficit needed: <strong id="ws-deficit">--</strong> cal/day to goal</div>
+          </div>
+        </div>
       </div>
       <div class="card">
         <div class="section-title">History</div>
@@ -691,7 +706,33 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
       </div>
     </div>
 
-    <!-- WORKOUTS TAB -->
+    <!-- MEAL PLANNER TAB -->
+    <div id="tab-meals" class="tab-content">
+      <div class="section-title">Meal Planner</div>
+      <div id="meal-plan-days"></div>
+      <div class="card" style="margin-top:10px;">
+        <div class="section-title">Add Meal to Plan</div>
+        <label>Day</label>
+        <select id="mp-day">
+          <option value="0">Monday</option><option value="1">Tuesday</option>
+          <option value="2">Wednesday</option><option value="3">Thursday</option>
+          <option value="4">Friday</option><option value="5">Saturday</option>
+          <option value="6">Sunday</option>
+        </select>
+        <label>Meal</label>
+        <select id="mp-meal"><option>breakfast</option><option>lunch</option><option>dinner</option><option>snacks</option></select>
+        <label>Food Name</label>
+        <input type="text" id="mp-name" placeholder="e.g. Grilled chicken and rice">
+        <label>Calories</label>
+        <input type="number" id="mp-cal" placeholder="0">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
+          <div><label>Protein(g)</label><input type="number" id="mp-protein" placeholder="0" style="margin-bottom:0;"></div>
+          <div><label>Carbs(g)</label><input type="number" id="mp-carbs" placeholder="0" style="margin-bottom:0;"></div>
+          <div><label>Fat(g)</label><input type="number" id="mp-fat" placeholder="0" style="margin-bottom:0;"></div>
+        </div>
+        <button class="btn-primary" onclick="addMealPlan()" style="margin-top:8px;">+ Add to Plan</button>
+      </div>
+    </div>
     <div id="tab-workouts" class="tab-content">
       <div class="section-title">Workout Programs</div>
       <div class="prog-tabs">
@@ -779,6 +820,7 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
   <div class="bottom-nav">
     <button class="nav-btn active" data-tab="home" onclick="switchTab('home',this)"><span class="nav-icon">&#127968;</span><span class="nav-label">Home</span></button>
     <button class="nav-btn" data-tab="log" onclick="switchTab('log',this)"><span class="nav-icon">&#128172;</span><span class="nav-label">Log</span></button>
+    <button class="nav-btn" data-tab="meals" onclick="switchTab('meals',this);renderMealPlan();"><span class="nav-icon">&#128197;</span><span class="nav-label">Plan</span></button>
     <button class="nav-btn" data-tab="water" onclick="switchTab('water',this)"><span class="nav-icon">&#128167;</span><span class="nav-label">Water</span></button>
     <button class="nav-btn" data-tab="weight" onclick="switchTab('weight',this)"><span class="nav-icon">&#9878;&#65039;</span><span class="nav-label">Weight</span></button>
     <button class="nav-btn" data-tab="workouts" onclick="switchTab('workouts',this)"><span class="nav-icon">&#x1F94A;</span><span class="nav-label">Gym</span></button>
@@ -798,7 +840,7 @@ var DEFAULT_PILLS=[
   {id:5,name:'Tadalafil',dose:'5mg',taken:false,daily:true,injDay:null}
 ];
 
-var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:null,log:[],weightHistory:[],lastReset:null,apiKey:null,pills:null,savedFoods:[],userAge:null,userHeight:null,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[]};
+var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:null,log:[],weightHistory:[],lastReset:null,apiKey:null,pills:null,savedFoods:[],userAge:null,userHeight:null,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],mealPlan:[]};
 var scannerStream=null,barcodeDetector=null,scanInterval=null,currentProductData=null;
 var currentPhotoItems=null;
 var notifCheckInterval=null;
@@ -945,7 +987,7 @@ function render(){
   document.getElementById('weight-display').textContent=cw.toFixed(1);
   document.getElementById('w-lost').textContent=Math.abs(START_WEIGHT-cw).toFixed(1);
   if(S.goalWeight)document.getElementById('w-togo').textContent=Math.max(cw-S.goalWeight,0).toFixed(1);
-  renderLog();renderHistory();renderPills();renderPillWidget();renderStreak();renderCalChart();renderMacroBars();renderMealBreakdown();renderWeightGraph();renderWorkoutHistory();renderCustomProgramsList();renderSteps();
+  renderLog();renderHistory();renderPills();renderPillWidget();renderStreak();renderCalChart();renderMacroBars();renderMealBreakdown();renderWeightGraph();renderWorkoutHistory();renderCustomProgramsList();renderSteps();renderWeightStats();renderStreakChecklist();
 }
 
 function renderLog(){
@@ -1674,14 +1716,26 @@ function saveWeight(){
 }
 
 /* ── AI CHAT ── */
+var chatHistory=[];
+
 function sendChat(){
   var inp=document.getElementById('chat-input');var msg=inp.value.trim();if(!msg)return;
   inp.value='';addMsg(msg,'user');
   if(!S.apiKey){addMsg('No API key. Go to Settings.','ai');return;}
   addMsg('...','ai');
-  var sys='You are a blunt tough coach for Ditty. Cal='+S.calories+', Goal=1800, Water='+Math.round(S.water||0)+'oz, Weight='+(S.weight||252.2)+'lbs, Steps='+(S.steps||0)+'. IF 11am-7pm. Start:252.2lbs. Monster Energy Ultra Blue 16oz = 10cal 0p 3c 0f. Keep responses SHORT. For EVERY food, water, exercise, or steps mentioned generate a tap-to-log link: [TAP TO LOG](https://cditt.github.io/ditty-app/?log=BASE64). JSON must use double quotes. Food: {"action":"food","category":"drinks","items":[{"name":"Monster Energy Ultra Blue 16oz","calories":10,"protein":0,"carbs":3,"fat":0}]} Water: {"action":"water","oz":16} Exercise: {"action":"exercise","name":"Walking","minutes":30,"burned":150} Steps: {"action":"steps","steps":8500}. One link per item. No headers. Be direct.';
-  fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.apiKey},body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'system',content:sys},{role:'user',content:msg}],max_tokens:300})}).then(function(r){return r.json();}).then(function(d){
+  chatHistory.push({role:'user',content:msg});
+  if(chatHistory.length>10)chatHistory=chatHistory.slice(-10);
+  var sys='You are a blunt, no-nonsense fitness coach for Ditty (Chris). Stats: '+S.calories+' cal eaten today, goal 1800 cal, '+Math.round(S.water||0)+'oz water, weight '+(S.weight||252.2)+'lbs, start weight 252.2lbs, goal weight '+(S.goalWeight||200)+'lbs, '+((S.steps||0)).toLocaleString()+' steps today.\n\nFOR EVERY food, drink, water, exercise, or step count mentioned, you MUST generate a tap-to-log link. Format: [LOG IT](https://cditt.github.io/ditty-app/?log=BASE64)\n\nBase64 encode these exact JSON structures:\nFood: {"action":"food","category":"CATEGORY","items":[{"name":"NAME","calories":N,"protein":N,"carbs":N,"fat":N}]}\nWater: {"action":"water","oz":N}\nExercise: {"action":"exercise","name":"NAME","minutes":N,"burned":N}\nSteps: {"action":"steps","steps":N}\n\nRULES:\n- CATEGORY must be: breakfast, lunch, dinner, snacks, or drinks\n- ALL values must be numbers (no quotes around numbers)\n- ALL keys must use double quotes\n- Generate one link per food item or action\n- Monster Energy Ultra Blue 16oz = 10 cal, 0p, 3c, 0f, category drinks\n- Be short and direct. No fluff.';
+  var messages=[{role:'system',content:sys}];
+  for(var i=0;i<chatHistory.length-1;i++)messages.push(chatHistory[i]);
+  messages.push({role:'user',content:msg});
+  fetch('https://api.openai.com/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.apiKey},
+    body:JSON.stringify({model:'gpt-4o-mini',messages:messages,max_tokens:400})
+  }).then(function(r){return r.json();}).then(function(d){
     var reply=(d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content)||'Error.';
+    chatHistory.push({role:'assistant',content:reply});
     var box=document.getElementById('chat-box');box.removeChild(box.lastElementChild);addMsg(reply,'ai');
   }).catch(function(){
     var box=document.getElementById('chat-box');box.removeChild(box.lastElementChild);addMsg('Connection error.','ai');
@@ -1891,7 +1945,161 @@ function getMacroGoals(){
   };
 }
 
-/* ── MACRO PROGRESS BARS ── */
+/* ── WEIGHT STATS ── */
+function renderWeightStats(){
+  if(!S.userHeight||!S.userAge)return;
+  var cw=S.weight||START_WEIGHT;
+  var ht=S.userHeight;
+  // BMI
+  var bmi=Math.round((cw*703)/(ht*ht)*10)/10;
+  var bmiEl=document.getElementById('ws-bmi');
+  if(bmiEl)bmiEl.textContent=bmi;
+  // Body fat % (US Navy simplified estimate for men)
+  var bf=Math.round((1.2*bmi)+(0.23*S.userAge)-16.2);
+  bf=Math.max(5,Math.min(bf,50));
+  var bfEl=document.getElementById('ws-bf');
+  if(bfEl)bfEl.textContent=bf+'%';
+  // Rate of loss lbs/week
+  var history=S.weightHistory||[];
+  var rate=0;
+  if(history.length>=2){
+    var oldest=history[Math.min(history.length-1,6)];
+    var newest=history[0];
+    var days=Math.max(1,Math.round((new Date(newest.date)-new Date(oldest.date))/(1000*60*60*24)));
+    rate=Math.round(((oldest.lbs-newest.lbs)/days)*7*10)/10;
+  }
+  var rateEl=document.getElementById('ws-rate');
+  if(rateEl)rateEl.textContent=(rate>=0?'-':'+')+(Math.abs(rate)||'--')+' lb';
+  // Projected date
+  var projEl=document.getElementById('ws-proj');
+  if(projEl){
+    if(rate>0&&S.goalWeight){
+      var weeksLeft=(cw-S.goalWeight)/rate;
+      var projDate=new Date();projDate.setDate(projDate.getDate()+Math.round(weeksLeft*7));
+      projEl.textContent=projDate.toLocaleDateString([],{month:'short',day:'numeric',year:'2-digit'});
+    }else{projEl.textContent='--';}
+  }
+  // Last week comparison
+  var lwEl=document.getElementById('ws-lastweek');
+  if(lwEl){
+    var weekOld=null;
+    for(var i=0;i<history.length;i++){
+      var d=new Date(history[i].date);
+      var diff=(new Date()-d)/(1000*60*60*24);
+      if(diff>=6&&diff<=8){weekOld=history[i].lbs;break;}
+    }
+    if(weekOld){
+      var change=Math.round((cw-weekOld)*10)/10;
+      lwEl.textContent=(change>0?'+':'')+change+' lbs this week';
+      lwEl.style.color=change<=0?'#2a7a2a':'#b81c1c';
+    }else{lwEl.textContent='No data yet';}
+  }
+  // Deficit needed
+  var defEl=document.getElementById('ws-deficit');
+  if(defEl&&S.goalWeight&&rate>0){
+    var lbsLeft=cw-S.goalWeight;
+    var calDeficit=Math.round((lbsLeft/((cw-S.goalWeight)/(rate||1)))*3500/7);
+    defEl.textContent=calDeficit>0?calDeficit+' cal':'On track';
+  }else if(defEl){defEl.textContent='Log more weight entries';}
+}
+
+/* ── STREAK CHECKLIST ── */
+function renderStreakChecklist(){
+  var el=document.getElementById('streak-checklist');
+  if(!el)return;
+  var hasFood=S.log&&S.log.some(function(l){return l.type==='food';});
+  var hasEx=S.log&&S.log.some(function(l){return l.type==='exercise';});
+  var hasWeight=S.weightHistory&&S.weightHistory.length>0&&S.weightHistory[0].date===new Date().toLocaleDateString();
+  var html='';
+  html+='<span style="color:'+(hasFood?'#2a7a2a':'#b81c1c')+'">'+(hasFood?'&#10003;':'&#9675;')+' Food</span> &nbsp;';
+  html+='<span style="color:'+(hasEx?'#2a7a2a':'#b81c1c')+'">'+(hasEx?'&#10003;':'&#9675;')+' Exercise</span> &nbsp;';
+  html+='<span style="color:'+(hasWeight?'#2a7a2a':'#b81c1c')+'">'+(hasWeight?'&#10003;':'&#9675;')+' Weight</span>';
+  el.innerHTML=html;
+}
+
+/* ── MEAL PLANNER ── */
+function addMealPlan(){
+  var name=document.getElementById('mp-name').value.trim();
+  var cal=parseInt(document.getElementById('mp-cal').value)||0;
+  var protein=parseFloat(document.getElementById('mp-protein').value)||0;
+  var carbs=parseFloat(document.getElementById('mp-carbs').value)||0;
+  var fat=parseFloat(document.getElementById('mp-fat').value)||0;
+  var day=parseInt(document.getElementById('mp-day').value);
+  var meal=document.getElementById('mp-meal').value;
+  if(!name){alert('Enter a food name.');return;}
+  if(!S.mealPlan)S.mealPlan=[];
+  S.mealPlan.push({name:name,calories:cal,protein:protein,carbs:carbs,fat:fat,day:day,meal:meal,logged:false});
+  save();
+  document.getElementById('mp-name').value='';
+  document.getElementById('mp-cal').value='';
+  document.getElementById('mp-protein').value='';
+  document.getElementById('mp-carbs').value='';
+  document.getElementById('mp-fat').value='';
+  renderMealPlan();
+  showBanner(name+' added to plan!',false);
+}
+
+function logPlannedMeal(idx){
+  var item=S.mealPlan[idx];
+  if(!item)return;
+  var t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  S.calories+=item.calories;S.protein+=item.protein;S.carbs+=item.carbs;S.fat+=item.fat;
+  S.log.push({type:'food',name:item.name,calories:item.calories,protein:item.protein,carbs:item.carbs,fat:item.fat,category:item.meal,time:t});
+  S.mealPlan[idx].logged=true;
+  save();render();renderMealPlan();
+  showBanner('Logged: '+item.name+' ('+item.calories+' cal)',false);
+}
+
+function deletePlannedMeal(idx){
+  S.mealPlan.splice(idx,1);
+  save();renderMealPlan();
+}
+
+function renderMealPlan(){
+  var el=document.getElementById('meal-plan-days');
+  if(!el)return;
+  if(!S.mealPlan)S.mealPlan=[];
+  var dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  var meals=['breakfast','lunch','dinner','snacks'];
+  var todayDow=(new Date().getDay()+6)%7;
+  var html='';
+  for(var d=0;d<7;d++){
+    var isToday=d===todayDow;
+    var dayItems=S.mealPlan.filter(function(m,i){m._idx=i;return m.day===d;});
+    // Re-map indices
+    var dayItemsWithIdx=[];
+    for(var i=0;i<S.mealPlan.length;i++){if(S.mealPlan[i].day===d)dayItemsWithIdx.push({item:S.mealPlan[i],idx:i});}
+    if(dayItemsWithIdx.length===0)continue;
+    html+='<div class="day-card" style="'+(isToday?'background:#fff8e8;':'')+'margin-bottom:10px;">';
+    html+='<div class="day-header" onclick="this.nextElementSibling.classList.toggle(\'open\')">';
+    html+='<div class="day-name">'+(isToday?'&#9654; ':'')+dayNames[d]+'</div>';
+    html+='<div class="day-type">'+dayItemsWithIdx.length+' meals planned</div></div>';
+    html+='<div class="day-body'+(isToday?' open':'')+'">';
+    for(var m=0;m<meals.length;m++){
+      var mealItems=dayItemsWithIdx.filter(function(x){return x.item.meal===meals[m];});
+      if(!mealItems.length)continue;
+      html+='<div style="font-family:\'Special Elite\',cursive;font-size:9px;letter-spacing:2px;color:#7a1010;text-transform:uppercase;margin:6px 0 3px;">'+meals[m]+'</div>';
+      for(var k=0;k<mealItems.length;k++){
+        var fi=mealItems[k];
+        html+='<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px dashed #d9c484;">';
+        html+='<div style="flex:1;"><div style="font-family:\'Special Elite\',cursive;font-size:11px;color:'+(fi.item.logged?'#7a6040':'#1a0d00')+';text-decoration:'+(fi.item.logged?'line-through':'none')+';">'+fi.item.name+'</div>';
+        html+='<div style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#7a6040;">'+fi.item.calories+' cal &middot; '+fi.item.protein+'p/'+fi.item.carbs+'c/'+fi.item.fat+'f</div></div>';
+        if(!fi.item.logged){
+          html+='<button onclick="logPlannedMeal('+fi.idx+')" style="background:#2a7a2a;color:#fff;border:none;font-family:\'Special Elite\',cursive;font-size:9px;padding:5px 8px;cursor:pointer;white-space:nowrap;letter-spacing:1px;">LOG</button>';
+        }else{
+          html+='<span style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#2a7a2a;">&#10003; Done</span>';
+        }
+        html+='<button onclick="deletePlannedMeal('+fi.idx+')" style="background:none;border:none;color:#7a6040;font-size:13px;cursor:pointer;padding:0 2px;">&#10005;</button>';
+        html+='</div>';
+      }
+    }
+    html+='</div></div>';
+  }
+  if(!html)html='<div class="card"><p class="log-empty">No meals planned yet. Add meals below.</p></div>';
+  el.innerHTML=html;
+}
+
+/* ── IMPROVED AI CHAT ── */
 function renderMacroBars(){
   var el=document.getElementById('macro-bars');
   if(!el)return;
