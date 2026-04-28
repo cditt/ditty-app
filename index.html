@@ -1889,20 +1889,21 @@ function pullSync(){
       var remote=data.record;
       var binId=S.jsonbinBinId;var jk=S.jsonbinKey;
       var today=new Date().toDateString();
-      // Only pull if remote is from TODAY — prevents yesterday's JSONBin wiping today's fresh data
+      // Only pull if remote is from today — prevents yesterday wiping today's reset
       if(remote.lastReset!==today)return;
-      if((remote.calories||0)>(S.calories||0)||(remote.log&&remote.log.length>(S.log||[]).length)){
-        S=Object.assign({},S,remote);
-        S.jsonbinBinId=binId;S.jsonbinKey=jk;
-        if(!S.pills||S.pills.length===0)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
-        if(!S.savedFoods)S.savedFoods=[];
-        if(!S.workoutSets)S.workoutSets={};
-        workoutSets=S.workoutSets;
-        localStorage.setItem('ditty_v3',JSON.stringify(S));
-        render();
-        var ss=document.getElementById('sync-status');
-        if(ss){ss.textContent='synced \u2713';setTimeout(function(){ss.textContent='';},3000);}
-      }
+      // Cloud is always master — always overwrite local with remote
+      S=Object.assign({},S,remote);
+      S.jsonbinBinId=binId;S.jsonbinKey=jk;
+      if(!S.pills||S.pills.length===0)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
+      if(!S.savedFoods)S.savedFoods=[];
+      if(!S.workoutSets)S.workoutSets={};
+      if(!S.mealPlan)S.mealPlan=[];
+      if(!S.calHistory)S.calHistory={};
+      workoutSets=S.workoutSets;
+      localStorage.setItem('ditty_v3',JSON.stringify(S));
+      render();
+      var ss=document.getElementById('sync-status');
+      if(ss){ss.textContent='synced \u2713';setTimeout(function(){ss.textContent='';},3000);}
     }
   }).catch(function(){});
 }
