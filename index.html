@@ -2824,26 +2824,42 @@ function logWorkoutToExercise(prog,dayIdx){
   try{
     var day=PROGRAMS[prog]&&PROGRAMS[prog].days[dayIdx];
     if(!day){showBanner('Could not find workout day.',true);return;}
+    // Capture weight inputs from screen before counting
+    var inputs=document.querySelectorAll('input[id^="w-"]');
+    for(var x=0;x<inputs.length;x++){
+      var inputKey=inputs[x].id.replace('w-','');
+      if(!workoutSets[inputKey])workoutSets[inputKey]={reps:10,weight:'',done:false};
+      workoutSets[inputKey].weight=inputs[x].value;
+    }
     var totalSets=0,doneSets=0;
     for(var e=0;e<day.exercises.length;e++){
       var ex=day.exercises[e];
       for(var s=0;s<ex.sets;s++){
         totalSets++;
         var key=prog+'-'+dayIdx+'-'+e+'-'+s;
-        if(workoutSets[key]&&workoutSets[key].done)doneSets++;
+        // Check both memory AND DOM for done state
+        var memDone=workoutSets[key]&&workoutSets[key].done;
+        var repsEl=document.getElementById('reps-'+key);
+        var domDone=repsEl&&repsEl.style&&repsEl.style.color==='rgb(42, 122, 42)';
+        if(memDone||domDone){
+          doneSets++;
+          if(!workoutSets[key])workoutSets[key]={reps:10,weight:'',done:false};
+          workoutSets[key].done=true;
+        }
       }
     }
-    if(doneSets===0){showBanner('Mark at least one set Done first.',true);return;}
-    var burned=Math.round(doneSets*4);// ~4 cal per set is more realistic for weight training
+    if(doneSets===0){showBanner('Tap Done on each set first, then tap Log.',true);return;}
+    var burned=Math.round(doneSets*4);
     var t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
     S.burned+=burned;
+    S.workoutSets=workoutSets;
     S.log.push({type:'exercise',name:day.type+' ('+doneSets+'/'+totalSets+' sets)',calories:-burned,category:'exercise',time:t});
     try{saveWorkoutHistory(prog,dayIdx,workoutSets);}catch(e2){console.log('history err',e2);}
     save();render();
     switchToTab('home');
     showBanner('Workout logged: '+day.type+' \u2014 '+doneSets+'/'+totalSets+' sets, ~'+burned+' cal burned',false);
   }catch(err){
-    showBanner('Error logging workout: '+err.message,true);
+    showBanner('Error: '+err.message,true);
     console.log('logWorkout error:',err);
   }
 }
