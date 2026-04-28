@@ -307,6 +307,12 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <div style="font-family:'Special Elite',cursive;font-size:16px;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px;color:#1a0d00;">Settings</div>
     <label>JSONBin Sync Key</label>
     <input type="password" id="settings-jsonbin" placeholder="$2b$10$...">
+    <label>JSONBin Bin ID <span style="font-size:9px;color:#b81c1c;">(copy this to other device)</span></label>
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <input type="text" id="settings-binid" placeholder="paste bin ID here" style="margin-bottom:0;flex:1;font-size:12px;">
+      <button onclick="copyBinId()" class="btn-secondary" style="white-space:nowrap;padding:6px 10px;font-size:10px;">Copy</button>
+    </div>
+    <div id="settings-binid-display" style="font-family:'Courier Prime',monospace;font-size:9px;color:#7a6040;margin-bottom:10px;word-break:break-all;"></div>
     <label>Goal Weight (lbs)</label>
     <input type="number" id="settings-goal" placeholder="185">
     <label>Your Age</label>
@@ -1517,6 +1523,9 @@ function dismissBanner(){document.getElementById('notif-banner').classList.remov
 /* ── SETTINGS ── */
 function openSettings(){
   document.getElementById('settings-jsonbin').value=S.jsonbinKey||'';
+  document.getElementById('settings-binid').value=S.jsonbinBinId||'';
+  var disp=document.getElementById('settings-binid-display');
+  if(disp)disp.textContent=S.jsonbinBinId?('Bin ID: '+S.jsonbinBinId):'No bin created yet';
   document.getElementById('settings-goal').value=S.goalWeight||'';
   document.getElementById('settings-age').value=S.userAge||'';
   document.getElementById('settings-height').value=S.userHeight||'';
@@ -1531,6 +1540,7 @@ function closeSettings(){document.getElementById('settings-modal').style.display
 
 function saveSettings(){
   var jk=document.getElementById('settings-jsonbin').value.trim();
+  var bid=document.getElementById('settings-binid').value.trim();
   var gw=parseFloat(document.getElementById('settings-goal').value);
   var ak=document.getElementById('settings-openai').value.trim();
   var age=parseInt(document.getElementById('settings-age').value);
@@ -1539,6 +1549,7 @@ function saveSettings(){
   var cg=parseInt(document.getElementById('settings-carbs-goal').value);
   var fg=parseInt(document.getElementById('settings-fat-goal').value);
   if(jk)S.jsonbinKey=jk;
+  if(bid)S.jsonbinBinId=bid;// Allow manual bin ID entry to link devices
   if(gw)S.goalWeight=gw;
   if(ak)S.apiKey=ak;
   if(age)S.userAge=age;
@@ -1552,6 +1563,16 @@ function saveSettings(){
   else if(S.jsonbinKey)pushSync();
   closeSettings();
   alert('Settings saved!');
+}
+
+function copyBinId(){
+  var id=S.jsonbinBinId||'';
+  if(!id){alert('No Bin ID yet. Make sure sync key is set and you\'ve logged something first.');return;}
+  navigator.clipboard.writeText(id).then(function(){
+    showBanner('Bin ID copied! Paste it in Settings on your other device.',false);
+  }).catch(function(){
+    alert('Bin ID: '+id);
+  });
 }
 
 function confirmReset(){
