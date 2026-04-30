@@ -1969,16 +1969,14 @@ function pullSync(){
     if(data&&data.record){
       var remote=data.record;
       var binId=S.jsonbinBinId;var jk=S.jsonbinKey;
-      var today=new Date().toDateString();
-      // Only pull if remote is from today — prevents yesterday wiping today's reset
-      if(remote.lastReset!==today)return;
-      // Always pull if remote was force-pushed more recently than our local copy
+      // Pull if remote was force-pushed more recently OR has more data
       var remotePush=remote.lastForcePush||0;
       var localPush=S.lastForcePush||0;
       var shouldPull=remotePush>localPush||
         (remote.calories||0)>(S.calories||0)||
         (remote.log&&remote.log.length>(S.log||[]).length);
-      if(!shouldPull)return;      S=Object.assign({},S,remote);
+      if(!shouldPull)return;
+      S=Object.assign({},S,remote);
       S.jsonbinBinId=binId;S.jsonbinKey=jk;
       if(!S.pills||S.pills.length===0)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
       if(!S.savedFoods)S.savedFoods=[];
