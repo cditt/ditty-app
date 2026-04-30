@@ -1936,6 +1936,7 @@ function resetSteps(){
 
 function forcePushSync(){
   S.workoutSets=workoutSets;
+  S.lastForcePush=Date.now();// Timestamp forces other devices to pull
   var ss=document.getElementById('sync-status');
   if(ss)ss.textContent='pushing...';
   if(!S.jsonbinKey){if(ss)ss.textContent='no sync key';return;}
@@ -1948,7 +1949,7 @@ function forcePushSync(){
     try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
     if(ss)ss.textContent='pushed \u2713';
     setTimeout(function(){if(ss)ss.textContent='';},3000);
-    showBanner('Data pushed to cloud \u2014 phone will update in 30s',false);
+    showBanner('Data pushed \u2014 other device updates in 30s',false);
   }).catch(function(){if(ss)ss.textContent='push failed';});
 }
 
@@ -1971,8 +1972,13 @@ function pullSync(){
       var today=new Date().toDateString();
       // Only pull if remote is from today — prevents yesterday wiping today's reset
       if(remote.lastReset!==today)return;
-      // Cloud is always master — always overwrite local with remote
-      S=Object.assign({},S,remote);
+      // Always pull if remote was force-pushed more recently than our local copy
+      var remotePush=remote.lastForcePush||0;
+      var localPush=S.lastForcePush||0;
+      var shouldPull=remotePush>localPush||
+        (remote.calories||0)>(S.calories||0)||
+        (remote.log&&remote.log.length>(S.log||[]).length);
+      if(!shouldPull)return;      S=Object.assign({},S,remote);
       S.jsonbinBinId=binId;S.jsonbinKey=jk;
       if(!S.pills||S.pills.length===0)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
       if(!S.savedFoods)S.savedFoods=[];
