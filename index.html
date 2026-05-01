@@ -884,7 +884,12 @@ function init(){
   if(S.notifEnabled)startNotifChecks();
 }
 
-function save(){saveCalHistoryEntry();try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}pushSync();}
+function save(){
+  S.workoutSets=workoutSets;
+  saveCalHistoryEntry();
+  try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+  pushSync();
+}
 
 function saveCalHistoryEntry(){
   try{
@@ -1935,25 +1940,12 @@ function resetSteps(){
 }
 
 function forcePushSync(){
-  S.workoutSets=workoutSets;
-  S.lastForcePush=Date.now();// Timestamp forces other devices to pull
-  var ss=document.getElementById('sync-status');
-  if(ss)ss.textContent='pushing...';
-  if(!S.jsonbinKey){if(ss)ss.textContent='no sync key';return;}
-  if(!S.jsonbinBinId){createBin();return;}
-  fetch('https://api.jsonbin.io/v3/b/'+S.jsonbinBinId,{
-    method:'PUT',
-    headers:{'Content-Type':'application/json','X-Master-Key':S.jsonbinKey},
-    body:JSON.stringify(S)
-  }).then(function(){
-    try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
-    if(ss)ss.textContent='pushed \u2713';
-    setTimeout(function(){if(ss)ss.textContent='';},3000);
-    showBanner('Data pushed \u2014 other device updates in 30s',false);
-  }).catch(function(){if(ss)ss.textContent='push failed';});
+  pushSync(true);
 }
 
-/* ── CLOUD SYNC ── */
+/* ── CLOUD SYNC — BULLETPROOF ── */
+/* Rule: every push stamps lastModified. Every pull checks if remote is newer. Last writer wins. */
+
 function initSync(){
   if(!S.jsonbinKey)return;
   pullSync();
@@ -1961,62 +1953,79 @@ function initSync(){
   SYNC_INTERVAL=setInterval(pullSync,30000);
 }
 
-function pullSync(){
-  if(!S.jsonbinKey||!S.jsonbinBinId)return;
-  fetch('https://api.jsonbin.io/v3/b/'+S.jsonbinBinId+'/latest',{
-    headers:{'X-Master-Key':S.jsonbinKey}
-  }).then(function(r){return r.json();}).then(function(data){
-    if(data&&data.record){
-      var remote=data.record;
-      var binId=S.jsonbinBinId;var jk=S.jsonbinKey;
-      // Pull if remote was force-pushed more recently OR has more data
-      var remotePush=remote.lastForcePush||0;
-      var localPush=S.lastForcePush||0;
-      var shouldPull=remotePush>localPush||
-        (remote.calories||0)>(S.calories||0)||
-        (remote.log&&remote.log.length>(S.log||[]).length);
-      if(!shouldPull)return;
-      S=Object.assign({},S,remote);
-      S.jsonbinBinId=binId;S.jsonbinKey=jk;
-      if(!S.pills||S.pills.length===0)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
-      if(!S.savedFoods)S.savedFoods=[];
-      if(!S.workoutSets)S.workoutSets={};
-      if(!S.mealPlan)S.mealPlan=[];
-      if(!S.calHistory)S.calHistory={};
-      workoutSets=S.workoutSets;
-      localStorage.setItem('ditty_v3',JSON.stringify(S));
-      render();
-      var ss=document.getElementById('sync-status');
-      if(ss){ss.textContent='synced \u2713';setTimeout(function(){ss.textContent='';},3000);}
-    }
-  }).catch(function(){});
-}
-
-function pushSync(){
+function pushSync(isForce){
   if(!S.jsonbinKey)return;
   if(!S.jsonbinBinId){createBin();return;}
+  // Always sync workoutSets before pushing
+  S.workoutSets=workoutSets;
+  S.lastModified=Date.now();
+  // Save locally first
+  try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
   var ss=document.getElementById('sync-status');
-  if(ss)ss.textContent='syncing...';
+  if(ss)ss.textContent='pushing...';
   fetch('https://api.jsonbin.io/v3/b/'+S.jsonbinBinId,{
     method:'PUT',
     headers:{'Content-Type':'application/json','X-Master-Key':S.jsonbinKey},
     body:JSON.stringify(S)
   }).then(function(){
-    if(ss)ss.textContent='synced \u2713';
+    if(ss)ss.textContent='pushed \u2713';
     setTimeout(function(){if(ss)ss.textContent='';},3000);
-  }).catch(function(){if(ss)ss.textContent='sync failed';});
+    if(isForce)showBanner('Data pushed. Other device syncs in 30s.',false);
+  }).catch(function(){
+    if(ss)ss.textContent='push failed';
+    if(isForce)showBanner('Push failed. Check internet.',true);
+  });
+}
+
+function pullSync(){
+  if(!S.jsonbinKey||!S.jsonbinBinId)return;
+  var ss=document.getElementById('sync-status');
+  fetch('https://api.jsonbin.io/v3/b/'+S.jsonbinBinId+'/latest',{
+    headers:{'X-Master-Key':S.jsonbinKey}
+  }).then(function(r){return r.json();}).then(function(data){
+    if(!data||!data.record)return;
+    var remote=data.record;
+    var remoteTime=remote.lastModified||0;
+    var localTime=S.lastModified||0;
+    // Only pull if remote is NEWER than local
+    if(remoteTime<=localTime)return;
+    // Preserve device-specific keys
+    var binId=S.jsonbinBinId;
+    var jk=S.jsonbinKey;
+    // Overwrite local with remote
+    S=Object.assign({},S,remote);
+    S.jsonbinBinId=binId;
+    S.jsonbinKey=jk;
+    // Safety checks for required arrays/objects
+    if(!S.pills||S.pills.length===0)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
+    if(!S.savedFoods)S.savedFoods=[];
+    if(!S.workoutSets)S.workoutSets={};
+    if(!S.mealPlan)S.mealPlan=[];
+    if(!S.calHistory)S.calHistory={};
+    if(!S.milestonesHit)S.milestonesHit={};
+    if(!S.workoutHistory)S.workoutHistory=[];
+    if(!S.customPrograms)S.customPrograms=[];
+    workoutSets=S.workoutSets;
+    try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+    render();
+    if(ss){ss.textContent='synced \u2713';setTimeout(function(){ss.textContent='';},3000);}
+  }).catch(function(err){
+    if(ss){ss.textContent='sync err';setTimeout(function(){ss.textContent='';},3000);}
+  });
 }
 
 function createBin(){
   if(!S.jsonbinKey)return;
+  S.lastModified=Date.now();
   fetch('https://api.jsonbin.io/v3/b',{
     method:'POST',
     headers:{'Content-Type':'application/json','X-Master-Key':S.jsonbinKey,'X-Bin-Name':'DittyFatJourney','X-Bin-Private':'true'},
     body:JSON.stringify(S)
   }).then(function(r){return r.json();}).then(function(data){
     if(data&&data.metadata&&data.metadata.id){
-      S.jsonbinBinId=data.metadata.id;save();
-      alert('Cloud sync enabled!');
+      S.jsonbinBinId=data.metadata.id;
+      try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+      alert('Cloud sync enabled! Bin ID: '+S.jsonbinBinId);
     }
   }).catch(function(e){console.error('Sync setup failed:',e);});
 }
@@ -2889,8 +2898,8 @@ function setSetWeight(key,prog,d,val){
   if(!workoutSets[key])workoutSets[key]={reps:10,weight:'',done:false};
   workoutSets[key].weight=val;
   S.workoutSets=workoutSets;
+  S.lastModified=Date.now();
   try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
-  // Debounce push to cloud - don't push on every keystroke, only after 1.5s of inactivity
   if(window._weightPushTimer)clearTimeout(window._weightPushTimer);
   window._weightPushTimer=setTimeout(function(){pushSync();},1500);
 }
@@ -2900,6 +2909,7 @@ function adjReps(key,delta,prog,d){
   var cur=workoutSets[key].reps||10;
   workoutSets[key].reps=Math.max(0,cur+delta);
   S.workoutSets=workoutSets;
+  S.lastModified=Date.now();
   try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
   pushSync();
   var el=document.getElementById('reps-'+key);
