@@ -353,6 +353,52 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
 
 <!-- WEIGHT GRAPH MODAL -->
 <div id="wg-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:450;background:#1a0d00;flex-direction:column;">
+
+<!-- PROGRESS CARD MODAL -->
+<div id="progress-card-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;flex-direction:column;">
+  <div style="max-width:380px;width:92%;padding:20px;">
+    <!-- THE CARD -->
+    <div id="progress-card" style="background:#1a0d00;border:3px solid #b81c1c;padding:24px;font-family:'Special Elite',cursive;color:#f0dca8;">
+      <div style="text-align:center;border-bottom:1px solid #b81c1c;padding-bottom:12px;margin-bottom:16px;">
+        <div style="font-family:'Bebas Neue',cursive;font-size:28px;letter-spacing:4px;color:#b81c1c;">DITTY'S FAT JOURNEY</div>
+        <div id="pc-date" style="font-family:'Courier Prime',monospace;font-size:10px;letter-spacing:2px;color:#7a6040;"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div style="text-align:center;border:1px solid #7a6040;padding:10px;">
+          <div id="pc-current" style="font-family:'Bebas Neue',cursive;font-size:36px;color:#f0dca8;line-height:1;">--</div>
+          <div style="font-size:9px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;">Current</div>
+        </div>
+        <div style="text-align:center;border:1px solid #7a6040;padding:10px;">
+          <div id="pc-lost" style="font-family:'Bebas Neue',cursive;font-size:36px;color:#2a7a2a;line-height:1;">--</div>
+          <div style="font-size:9px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;">Lost</div>
+        </div>
+        <div style="text-align:center;border:1px solid #7a6040;padding:10px;">
+          <div id="pc-streak" style="font-family:'Bebas Neue',cursive;font-size:36px;color:#b81c1c;line-height:1;">--</div>
+          <div style="font-size:9px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;">Day Streak</div>
+        </div>
+        <div style="text-align:center;border:1px solid #7a6040;padding:10px;">
+          <div id="pc-togo" style="font-family:'Bebas Neue',cursive;font-size:36px;color:#f0dca8;line-height:1;">--</div>
+          <div style="font-size:9px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;">To Goal</div>
+        </div>
+      </div>
+      <div id="pc-bar-wrap" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:8px;letter-spacing:1px;color:#7a6040;margin-bottom:4px;text-transform:uppercase;">
+          <span>Start 252.2</span><span id="pc-pct">0%</span><span id="pc-goal-lbl">Goal 205</span>
+        </div>
+        <div style="background:#2a1600;height:12px;border:1px solid #7a6040;">
+          <div id="pc-bar" style="height:100%;background:linear-gradient(to right,#b81c1c,#2a7a2a);width:0%;"></div>
+        </div>
+      </div>
+      <div style="text-align:center;font-family:'Courier Prime',monospace;font-size:9px;color:#7a6040;letter-spacing:1px;border-top:1px solid #7a6040;padding-top:10px;">
+        START: 252.2 lbs &nbsp;|&nbsp; GOAL: <span id="pc-goal-val">205</span> lbs
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="shareProgressCard()" style="flex:1;background:#2a7a2a;color:#f0dca8;border:none;font-family:'Special Elite',cursive;font-size:12px;letter-spacing:2px;padding:14px;cursor:pointer;text-transform:uppercase;">&#128247; Screenshot & Share</button>
+      <button onclick="closeProgressCard()" style="background:#7a6040;color:#f0dca8;border:none;font-family:'Special Elite',cursive;font-size:11px;padding:14px 16px;cursor:pointer;">&#10005;</button>
+    </div>
+  </div>
+</div>
   <div style="padding:12px 16px;border-bottom:2px solid #b81c1c;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
     <div style="font-family:'Special Elite',cursive;font-size:14px;letter-spacing:3px;color:#f0dca8;text-transform:uppercase;">Progress Graph</div>
     <button onclick="closeWeightGraph()" style="background:none;border:none;color:#f0dca8;font-size:22px;cursor:pointer;padding:0;">&#10005;</button>
@@ -693,7 +739,8 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
           <div class="stat-box"><div class="stat-num" id="w-lost">0.0</div><div class="stat-label">Lost</div></div>
           <div class="stat-box"><div class="stat-num" id="w-togo">--</div><div class="stat-label">To Go</div></div>
         </div>
-        <button onclick="openWeightGraph()" style="width:100%;background:#1a0d00;color:#f0dca8;border:2px solid #b81c1c;font-family:'Special Elite',cursive;font-size:12px;letter-spacing:2px;padding:12px;cursor:pointer;text-transform:uppercase;margin-bottom:12px;">&#128200; View Progress Graph</button>
+        <button onclick="openWeightGraph()" style="width:100%;background:#1a0d00;color:#f0dca8;border:2px solid #b81c1c;font-family:'Special Elite',cursive;font-size:12px;letter-spacing:2px;padding:12px;cursor:pointer;text-transform:uppercase;margin-bottom:8px;">&#128200; View Progress Graph</button>
+        <button onclick="showProgressCard()" style="width:100%;background:#2a7a2a;color:#f0dca8;border:2px solid #2a7a2a;font-family:'Special Elite',cursive;font-size:12px;letter-spacing:2px;padding:12px;cursor:pointer;text-transform:uppercase;margin-bottom:12px;">&#128247; Share Progress Card</button>
         <label>Log Today's Weight</label>
         <input type="number" id="weight-input" placeholder="e.g. 249.5" step="0.1">
         <button class="btn-primary" onclick="saveWeight()">Save Weight</button>
@@ -2101,6 +2148,45 @@ function getMacroGoals(){
     carbs: S.carbsGoal||150,
     fat: S.fatGoal||70
   };
+}
+
+/* ── PROGRESS CARD ── */
+function showProgressCard(){
+  var modal=document.getElementById('progress-card-modal');
+  if(!modal)return;
+  var cw=S.weight||START_WEIGHT;
+  var lost=Math.round((START_WEIGHT-cw)*10)/10;
+  var togo=Math.round((cw-(S.goalWeight||205))*10)/10;
+  var pct=Math.round(((START_WEIGHT-cw)/(START_WEIGHT-(S.goalWeight||205)))*100);
+  pct=Math.max(0,Math.min(pct,100));
+  var streak=calcStreak();
+  document.getElementById('pc-date').textContent=new Date().toLocaleDateString([],{weekday:'long',year:'numeric',month:'long',day:'numeric'}).toUpperCase();
+  document.getElementById('pc-current').textContent=cw+' LBS';
+  document.getElementById('pc-lost').textContent='-'+lost+' LBS';
+  document.getElementById('pc-streak').textContent=streak+' DAYS';
+  document.getElementById('pc-togo').textContent=Math.max(togo,0)+' LBS';
+  document.getElementById('pc-bar').style.width=pct+'%';
+  document.getElementById('pc-pct').textContent=pct+'%';
+  document.getElementById('pc-goal-lbl').textContent='Goal '+(S.goalWeight||205);
+  document.getElementById('pc-goal-val').textContent=(S.goalWeight||205);
+  modal.style.display='flex';
+}
+
+function closeProgressCard(){
+  var modal=document.getElementById('progress-card-modal');
+  if(modal)modal.style.display='none';
+}
+
+function shareProgressCard(){
+  showBanner('Take a screenshot now \u2014 hold power + volume down',false);
+  // Try native share if available
+  if(navigator.share){
+    navigator.share({
+      title:'Ditty\'s Fat Journey Progress',
+      text:'Check out my progress! '+Math.round((START_WEIGHT-(S.weight||START_WEIGHT))*10)/10+' lbs lost so far. Goal: '+(S.goalWeight||205)+' lbs.',
+      url:'https://cditt.github.io/ditty-app/'
+    }).catch(function(){});
+  }
 }
 
 /* ── WEIGHT STATS ── */
