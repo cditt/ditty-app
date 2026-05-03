@@ -3034,6 +3034,11 @@ function renderWorkoutProgram(prog){
           var curWeight=setData.weight||'';
           var done=setData.done||false;
           var lastWeight=getLastSessionWeight(prog,day.type,ex.name,s);
+          // Suggested next weight — 2.5lb bump from last session
+          var suggested='';
+          if(lastWeight&&parseFloat(lastWeight)>0&&!curWeight){
+            suggested=Math.round((parseFloat(lastWeight)+2.5)*2)/2;// round to nearest 2.5
+          }
           var isTimed=/sec|min/i.test(ex.reps);
           var targetSecs=0;
           if(isTimed){
@@ -3051,10 +3056,13 @@ function renderWorkoutProgram(prog){
             html+='<button onclick="startStopwatch(\''+key+'\','+targetSecs+')" style="background:#1a3a6a;color:#f0dca8;border:none;font-family:\'Special Elite\',cursive;font-size:10px;letter-spacing:1px;padding:8px 10px;cursor:pointer;border-radius:3px;" id="sw-btn-'+key+'">&#9654; START</button>';
             html+='</div>';
           }else{
-            // Weight input with last session ghost
+            // Weight input with last session ghost + suggestion
             html+='<div style="position:relative;flex:1;">';
+            if(suggested){
+              html+='<div style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#1a3a6a;margin-bottom:2px;cursor:pointer;" onclick="document.getElementById(\'w-'+key+'\').value='+suggested+';setSetWeight(\''+key+'\',\''+prog+'\','+d+','+suggested+')">&#8593; Try '+suggested+'lb (+2.5 from last)</div>';
+            }
             html+='<input type="number" id="w-'+key+'" value="'+curWeight+'" placeholder="'+(lastWeight?lastWeight+' last':' lbs')+'" style="width:100%;margin-bottom:0;padding:8px;font-size:15px;background:'+(done?'#d4ecd4':'#fdf6e0')+'" onchange="setSetWeight(\''+key+'\',\''+prog+'\','+d+',this.value)">';
-            if(lastWeight)html+='<span style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-family:\'Courier Prime\',monospace;font-size:8px;color:#aaa;">prev:'+lastWeight+'</span>';
+            if(lastWeight&&!suggested)html+='<span style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-family:\'Courier Prime\',monospace;font-size:8px;color:#aaa;">prev:'+lastWeight+'</span>';
             html+='</div>';
             html+='<span style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#7a6040;">lb</span>';
             // Reps
@@ -3112,15 +3120,60 @@ function toggleSetDone(key,prog,d){
   if(!workoutSets[key])workoutSets[key]={reps:10,weight:'',done:false};
   var inp=document.getElementById('w-'+key);
   if(inp)workoutSets[key].weight=inp.value;
+  var wasDone=workoutSets[key].done;
   workoutSets[key].done=!workoutSets[key].done;
   S.workoutSets=workoutSets;
-  save();// full save + pushSync to cloud
+  save();
+  // Start rest timer when marking a set DONE (not undone)
+  if(!wasDone&&workoutSets[key].done){
+    startRestTimer();
+  }else{
+    clearRestTimer();
+  }
   // Preserve open days before re-render
   var openDays={};
   var bodies=document.querySelectorAll('[id^="day-body-"]');
   for(var i=0;i<bodies.length;i++){if(bodies[i].classList.contains('open'))openDays[bodies[i].id]=true;}
   renderWorkoutProgram(prog);
   for(var id in openDays){var el=document.getElementById(id);if(el)el.classList.add('open');}
+}
+
+/* ── REST TIMER ── */
+var restTimerInterval=null;
+var REST_DURATION=90;// seconds — standard rest between sets
+
+function startRestTimer(){
+  clearRestTimer();
+  var remaining=REST_DURATION;
+  // Show rest timer banner
+  var banner=document.getElementById('rest-timer-banner');
+  if(!banner){
+    banner=document.createElement('div');
+    banner.id='rest-timer-banner';
+    banner.style.cssText='position:fixed;bottom:70px;left:0;right:0;background:#1a0d00;color:#f0dca8;font-family:\'Bebas Neue\',cursive;font-size:22px;letter-spacing:3px;text-align:center;padding:12px;z-index:9999;cursor:pointer;border-top:2px solid #b81c1c;';
+    banner.onclick=function(){clearRestTimer();};
+    document.body.appendChild(banner);
+  }
+  banner.style.display='block';
+  function tick(){
+    if(remaining<=0){
+      clearRestTimer();
+      if(navigator.vibrate)navigator.vibrate([300,100,300,100,500]);
+      showBanner('Rest over. Next set. Let\'s go.',false);
+      return;
+    }
+    var m=Math.floor(remaining/60);var s=remaining%60;
+    banner.innerHTML='REST &nbsp; '+(m>0?m+'m ':'')+s+'s &nbsp; <span style="font-size:12px;letter-spacing:1px;">tap to skip</span>';
+    remaining--;
+  }
+  tick();
+  restTimerInterval=setInterval(tick,1000);
+}
+
+function clearRestTimer(){
+  if(restTimerInterval){clearInterval(restTimerInterval);restTimerInterval=null;}
+  var banner=document.getElementById('rest-timer-banner');
+  if(banner)banner.style.display='none';
 }
 
 function logWorkoutToExercise(prog,dayIdx){
