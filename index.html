@@ -3628,97 +3628,37 @@ window.addEventListener('load',function(){
   });
 })();
 </script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-  var dayCards = document.querySelectorAll(".day-card");
-  if (dayCards.length) {
-    var today = new Date().getDay();
-    if (today === 0) today = dayCards.length - 1;
-    else today = today - 1;
-    var target = dayCards[today];
-    var body = target && target.querySelector(".day-body");
-    if (body) {
-      body.classList.add("open");
-      setTimeout(function() {
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 200);
-    }
-  }
-  var tabs = document.querySelectorAll(".prog-tab");
-  tabs.forEach(function(tab) {
-    tab.addEventListener("click", function() {
-      localStorage.setItem("currentProgram", tab.innerText.trim());
-    });
-  });
-  var savedProgram = localStorage.getItem("currentProgram");
-  if (savedProgram) {
-    tabs.forEach(function(tab) {
-      if (tab.innerText.trim() === savedProgram) { tab.click(); }
-    });
-  }
-  var RULE_TEXT = "Hit top reps \u2192 increase weight. Miss reps \u2192 hold weight. Day 4 protect shoulder (1\u20132 reps in reserve).";
-  document.querySelectorAll(".day-body").forEach(function(body) {
-    if (!body.querySelector(".rule-strip")) {
-      var div = document.createElement("div");
-      div.className = "rule-strip";
-      div.style.fontSize = "10px";
-      div.style.margin = "6px 0";
-      div.style.color = "#7a6040";
-      div.style.fontFamily = "Courier Prime, monospace";
-      div.textContent = RULE_TEXT;
-      body.prepend(div);
-    }
-  });
-  document.querySelectorAll(".ex-item").forEach(function(exercise) {
-    var buttons = exercise.querySelectorAll(".set-btn");
-    if (!buttons.length) return;
-    var msg = document.createElement("div");
-    msg.style.fontSize = "10px";
-    msg.style.marginTop = "4px";
-    msg.style.color = "#2a7a2a";
-    msg.style.display = "none";
-    msg.textContent = "All sets complete \u2192 increase weight next session";
-    exercise.appendChild(msg);
-    buttons.forEach(function(btn) {
-      btn.addEventListener("click", function() {
-        btn.classList.toggle("done");
-        var allDone = Array.from(buttons).every(function(b) { return b.classList.contains("done"); });
-        msg.style.display = allDone ? "block" : "none";
-      });
-    });
-  });
-});
-</script>
+
 <script>
 (function(){
 document.addEventListener("DOMContentLoaded",function(){
-const cards=document.querySelectorAll(".day-card");
+var cards=document.querySelectorAll(".day-card");
 if(cards.length){
-let d=new Date().getDay();
+var d=new Date().getDay();
 d=(d===0)?cards.length-1:d-1;
-const target=cards[d];
-const body=target&&target.querySelector(".day-body");
+var target=cards[d];
+var body=target&&target.querySelector(".day-body");
 if(body&&!body.classList.contains("open")){
 body.classList.add("open");
 setTimeout(function(){target.scrollIntoView({behavior:"smooth",block:"start"});},200);
 }
 }
-const tabs=document.querySelectorAll(".prog-tab");
+var tabs=document.querySelectorAll(".prog-tab");
 tabs.forEach(function(tab){
 tab.addEventListener("click",function(){
 localStorage.setItem("currentProgram",tab.innerText.trim());
 });
 });
-const saved=localStorage.getItem("currentProgram");
+var saved=localStorage.getItem("currentProgram");
 if(saved){
 tabs.forEach(function(tab){
 if(tab.innerText.trim()===saved){tab.click();}
 });
 }
-const RULE="Hit top reps \u2192 increase weight. Miss reps \u2192 hold weight. Day 4 protect shoulder (1\u20132 reps in reserve).";
+var RULE="Hit top reps → increase weight. Miss reps → hold weight. Day 4 protect shoulder (1–2 reps in reserve).";
 document.querySelectorAll(".day-body").forEach(function(body){
 if(!body.querySelector(".rule-strip")){
-const r=document.createElement("div");
+var r=document.createElement("div");
 r.className="rule-strip";
 r.style.fontSize="10px";
 r.style.margin="6px 0";
@@ -3728,9 +3668,9 @@ body.prepend(r);
 }
 });
 document.querySelectorAll(".ex-item").forEach(function(ex){
-const btns=ex.querySelectorAll(".set-btn");
+var btns=ex.querySelectorAll(".set-btn");
 if(!btns.length)return;
-let msg=ex.querySelector(".progress-msg");
+var msg=ex.querySelector(".progress-msg");
 if(!msg){
 msg=document.createElement("div");
 msg.className="progress-msg";
@@ -3738,11 +3678,11 @@ msg.style.fontSize="10px";
 msg.style.marginTop="4px";
 msg.style.color="#2a7a2a";
 msg.style.display="none";
-msg.textContent="All sets complete \u2192 increase weight next session";
+msg.textContent="All sets complete → increase weight next session";
 ex.appendChild(msg);
 }
 function check(){
-const allDone=Array.from(btns).every(function(b){return b.classList.contains("done");});
+var allDone=Array.from(btns).every(function(b){return b.classList.contains("done");});
 msg.style.display=allDone?"block":"none";
 }
 btns.forEach(function(btn){
