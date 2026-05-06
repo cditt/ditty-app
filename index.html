@@ -200,8 +200,10 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
 
 /* WORKOUTS */
 .prog-tabs{display:flex;border:2px solid #2a1600;margin-bottom:12px;}
-.prog-tab{flex:1;padding:8px 4px;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;background:#fdf6e0;color:#7a6040;text-align:center;}
+.prog-tab{flex:1;padding:8px 4px;font-family:'Special Elite',cursive;font-size:9px;letter-spacing:1px;text-transform:uppercase;border:none;cursor:pointer;background:#fdf6e0;color:#aaa090;text-align:center;}
+.prog-tab:first-child{font-size:11px;color:#1a0d00;background:#f5e8b0;}
 .prog-tab.active{background:#b81c1c;color:#f0dca8;}
+.prog-tab:first-child.active{background:#b81c1c;color:#f0dca8;font-size:11px;}
 .prog-tab+.prog-tab{border-left:2px solid #2a1600;}
 .day-card{background:#fdf6e0;border:2px solid #2a1600;margin-bottom:10px;position:relative;}
 .day-card::after{content:'';position:absolute;top:3px;left:3px;right:-3px;bottom:-3px;background:#2a1600;z-index:-1;}
@@ -797,7 +799,8 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <div id="tab-workouts" class="tab-content">
       <div class="section-title">Workout Programs</div>
       <div class="prog-tabs">
-        <button class="prog-tab active" onclick="switchProg('ppl',this)">PPL</button>
+        <button class="prog-tab active" onclick="switchProg('current',this)">&#9733; Plan</button>
+        <button class="prog-tab" onclick="switchProg('ppl',this)">PPL</button>
         <button class="prog-tab" onclick="switchProg('ul',this)">Upper/Lower</button>
         <button class="prog-tab" onclick="switchProg('fb',this)">Full Body</button>
         <button class="prog-tab" onclick="switchProg('bro',this)">Bro Split</button>
@@ -805,8 +808,8 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
         <button class="prog-tab" onclick="switchProg('history',this)">&#128196; Log</button>
         <button class="prog-tab" onclick="switchProg('custom',this)">&#43; Build</button>
       </div>
-      <div id="prog-ppl"></div>
-      <div id="prog-ul" style="display:none;"></div>
+      <div id="prog-current"></div>
+      <div id="prog-ppl" style="display:none;"></div>
       <div id="prog-fb" style="display:none;"></div>
       <div id="prog-bro" style="display:none;"></div>
       <!-- OUTDOOR ACTIVITIES -->
@@ -929,7 +932,7 @@ var DEFAULT_PILLS=[
   {id:5,name:'Tadalafil',dose:'5mg',taken:false,daily:true,injDay:null}
 ];
 
-var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:null,log:[],weightHistory:[],lastReset:null,apiKey:null,pills:null,savedFoods:[],userAge:null,userHeight:null,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],mealPlan:[],milestonesHit:{}};
+var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:null,log:[],weightHistory:[],lastReset:null,apiKey:null,pills:null,savedFoods:[],userAge:null,userHeight:null,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],mealPlan:[],milestonesHit:{},currentPlanKey:'current'};
 var scannerStream=null,barcodeDetector=null,scanInterval=null,currentProductData=null;
 var currentPhotoItems=null;
 var notifCheckInterval=null;
@@ -941,6 +944,7 @@ function init(){
   if(!S.pills||S.pills.length===0){S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));}
   if(!S.savedFoods)S.savedFoods=[];
   if(!S.workoutSets)S.workoutSets={};
+  loadCurrentPlan();
   // Pre-fill Monday Push (PPL=0, day=0) and Thursday Legs (PPL=0, day=3) from screenshots
   var PREFILL={
     // Monday Push — exercise index: 0=Bench, 1=Incline DB, 2=Overhead, 3=Lateral, 4=Tricep Push, 5=OHT Ext
@@ -1958,6 +1962,7 @@ function switchTab(name,btn){
   for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
   document.getElementById('tab-'+name).classList.add('active');
   if(btn)btn.classList.add('active');
+  if(name==='workouts'){setTimeout(openTodayWorkout,80);}
 }
 
 function switchToTab(name){
@@ -2052,6 +2057,55 @@ function resetSteps(){
 
 function forcePushSync(){
   pushSync(true);
+}
+
+/* ── OPEN TODAY'S WORKOUT ── */
+function openTodayWorkout(){
+  // Load persisted program
+  try{var saved=localStorage.getItem('currentProgram');if(saved&&PROGRAMS[saved])S.currentPlanKey=saved;}catch(e){}
+  var planKey=S.currentPlanKey||'current';
+
+  // Show prog-current, hide others
+  ['current','ppl','ul','fb','bro','outdoor','history','custom'].forEach(function(id){
+    var el=document.getElementById('prog-'+id);
+    if(el)el.style.display=id==='current'?'block':'none';
+  });
+
+  // Activate first prog-tab (★ Plan)
+  var ptabs=document.querySelectorAll('.prog-tab');
+  for(var i=0;i<ptabs.length;i++)ptabs[i].classList.remove('active');
+  if(ptabs[0])ptabs[0].classList.add('active');
+  currentProg='current';
+
+  // Render WITHOUT autoExpand — we will manually open today below
+  renderWorkoutProgram(planKey,false);
+
+  // Now open today's .day-body by pure DOM index (0=Mon ... 6=Sun)
+  var todayIdx=(new Date().getDay()+6)%7;
+  var container=document.getElementById('prog-current');
+  if(!container)return;
+  var dayBodies=container.querySelectorAll('.day-body');
+  // Close all first, then open today's
+  for(var j=0;j<dayBodies.length;j++)dayBodies[j].classList.remove('open');
+  var target=dayBodies[todayIdx];
+  if(target){
+    target.classList.add('open');
+    // Inject rule strip if not already present
+    if(!target.querySelector('.rule-strip')){
+      var strip=document.createElement('div');
+      strip.className='rule-strip';
+      strip.style.cssText='font-family:Courier Prime,monospace;font-size:9px;color:#7a6040;padding:5px 8px;border-bottom:1px dashed #d9c484;';
+      strip.textContent='Hit top reps \u2192 increase weight next time. Miss reps \u2192 hold weight. Day 4: protect shoulder (1\u20132 reps in reserve).';
+      target.insertBefore(strip,target.firstChild);
+    }
+    // Scroll into view
+    var card=target.parentElement||target;
+    requestAnimationFrame(function(){
+      card.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
+  // Run completion check
+  checkAllExerciseCompletion();
 }
 
 /* ── CLOUD SYNC — BULLETPROOF ── */
@@ -2856,6 +2910,49 @@ function checkDailyRecap(h,m,dateStr){
 
 /* ── SETTINGS SAVE/OPEN (extended) ── */
 var PROGRAMS={
+  current:{
+    name:'Current Plan (Shoulder-Friendly 5-Day)',
+    days:[
+      {name:'Day 1',type:'Push — Chest Focus',rest:false,notes:'Push hard. Full range, control the weight.',exercises:[
+        {name:'Incline DB Press (neutral grip)',sets:4,reps:'6-10'},
+        {name:'Machine Chest Press',sets:3,reps:'8-12'},
+        {name:'Cable Fly (low to high)',sets:3,reps:'12-15'},
+        {name:'Rope Pushdowns',sets:3,reps:'10-15'},
+        {name:'Overhead Cable Triceps',sets:3,reps:'12-15'}
+      ]},
+      {name:'Day 2',type:'Pull',rest:false,notes:'Control the eccentric. Feel the lats.',exercises:[
+        {name:'Neutral Grip Lat Pulldown',sets:4,reps:'8-12'},
+        {name:'Chest-Supported Row',sets:3,reps:'8-12'},
+        {name:'Single Arm DB Row',sets:3,reps:'10'},
+        {name:'Rear Delt Cable Fly',sets:3,reps:'12-15'},
+        {name:'Incline DB Curl',sets:3,reps:'10-12'},
+        {name:'Hammer Curl',sets:3,reps:'10-12'}
+      ]},
+      {name:'Day 3',type:'Legs',rest:false,notes:'90 sec rest on compounds, 60 sec on accessories.',exercises:[
+        {name:'Back Squat',sets:4,reps:'5-8'},
+        {name:'Leg Press',sets:3,reps:'10-12'},
+        {name:'Romanian Deadlift',sets:3,reps:'8-10'},
+        {name:'Leg Curl',sets:3,reps:'12-15'},
+        {name:'Standing Calf Raise',sets:4,reps:'12-15'}
+      ]},
+      {name:'Day 4',type:'Upper — Balanced',rest:false,notes:'Protect the shoulder. Keep 1-2 reps in reserve on everything.',exercises:[
+        {name:'Machine Incline Press',sets:3,reps:'10-12'},
+        {name:'Lat Pulldown',sets:3,reps:'10-12'},
+        {name:'Seated Cable Row',sets:3,reps:'10-12'},
+        {name:'Lateral Raises',sets:3,reps:'12-15'},
+        {name:'Face Pulls',sets:3,reps:'12-15'},
+        {name:'Triceps Pushdown',sets:3,reps:'12'},
+        {name:'EZ Bar Curl',sets:3,reps:'12'}
+      ]},
+      {name:'Day 5',type:'Lower + Conditioning',rest:false,notes:'Pick Front Squat OR Hack Squat and stick with it 6 weeks.',exercises:[
+        {name:'Front Squat / Hack Squat',sets:3,reps:'6-10'},
+        {name:'Walking Lunges',sets:3,reps:'12 each'},
+        {name:'Leg Extension',sets:3,reps:'12-15'},
+        {name:'Seated Calf Raise',sets:4,reps:'12-15'},
+        {name:'Bike Intervals (20s hard/40s easy)',sets:10,reps:'1 round'}
+      ]}
+    ]
+  },
   ppl:{
     name:'Push / Pull / Legs',
     days:[
@@ -3029,23 +3126,65 @@ var PROGRAMS={
   }
 };
 
-var currentProg='ppl';
+var currentProg='current';
 var workoutSets={};// key: progDay-exIdx-setIdx -> {reps, weight, done} - loaded from S.workoutSets on init
 
 function switchProg(prog,btn){
   currentProg=prog;
+  // Save selection to localStorage
+  try{if(prog!=='current'&&prog!=='history'&&prog!=='custom'&&prog!=='outdoor')localStorage.setItem('currentProgram',prog);}catch(e){}
   var btns=document.querySelectorAll('.prog-tab');
   for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
-  btn.classList.add('active');
-  var ids=['ppl','ul','fb','bro','outdoor','history','custom'];
+  if(btn)btn.classList.add('active');
+  var ids=['current','ppl','ul','fb','bro','outdoor','history','custom'];
   for(var i=0;i<ids.length;i++){
     var el=document.getElementById('prog-'+ids[i]);
     if(el)el.style.display=ids[i]===prog?'block':'none';
   }
   if(prog==='history'){renderWorkoutHistory();}
   else if(prog==='custom'){renderCustomProgramsList();}
-  else if(prog==='outdoor'){}// Static HTML, no render needed
-  else{renderWorkoutProgram(prog);}
+  else if(prog==='outdoor'){}
+  else if(prog==='current'){
+    var planKey=S.currentPlanKey||'current';
+    renderWorkoutProgram(planKey,true);
+  }
+  else{
+    renderWorkoutProgram(prog,false);
+    showSetCurrentPlanBtn(prog);
+  }
+}
+
+function showSetCurrentPlanBtn(prog){
+  var existing=document.getElementById('set-current-plan-btn');
+  if(existing)existing.remove();
+  var el=document.getElementById('prog-'+prog);
+  if(!el)return;
+  var btn=document.createElement('button');
+  btn.id='set-current-plan-btn';
+  btn.innerHTML='&#9733; Set as Current Plan';
+  btn.style.cssText='width:100%;background:#1a3a6a;color:#f0dca8;border:2px solid #1a3a6a;font-family:\'Special Elite\',cursive;font-size:12px;letter-spacing:2px;padding:12px;cursor:pointer;text-transform:uppercase;margin-bottom:10px;';
+  btn.onclick=function(){setAsCurrentPlan(prog);};
+  el.insertBefore(btn,el.firstChild);
+}
+
+function setAsCurrentPlan(prog){
+  S.currentPlanKey=prog;
+  try{localStorage.setItem('currentProgram',prog);}catch(e){}
+  save();
+  showBanner(PROGRAMS[prog].name+' is now your Current Plan.',false);
+  // Re-render the current plan tab with the new program, today auto-open
+  renderWorkoutProgram(prog,true);
+  // Switch to the ★ Plan tab
+  var tabs=document.querySelectorAll('.prog-tab');
+  if(tabs[0])switchProg('current',tabs[0]);
+}
+
+function loadCurrentPlan(){
+  try{
+    var stored=localStorage.getItem('currentProgram');
+    if(stored&&PROGRAMS[stored])S.currentPlanKey=stored;
+  }catch(e){}
+  if(!S.currentPlanKey||!PROGRAMS[S.currentPlanKey])S.currentPlanKey='current';
 }
 
 function getLastSessionWeight(prog,dayType,exName,setIdx){
@@ -3066,8 +3205,10 @@ function getLastSessionWeight(prog,dayType,exName,setIdx){
   return '';
 }
 
-function renderWorkoutProgram(prog){
-  var el=document.getElementById('prog-'+prog);
+function renderWorkoutProgram(prog,autoExpand){
+  // Render into current tab if called from current plan
+  var targetId=(currentProg==='current')?'prog-current':'prog-'+prog;
+  var el=document.getElementById(targetId);
   if(!el)return;
   var program=PROGRAMS[prog];
   if(!program){el.innerHTML='<p class="log-empty">Program not found.</p>';return;}
@@ -3096,9 +3237,19 @@ function renderWorkoutProgram(prog){
     if(day.rest){html+='<div style="font-family:\'Special Elite\',cursive;font-size:11px;color:#7a6040;letter-spacing:2px;text-transform:uppercase;">REST</div>';}
     else{html+='<div style="font-family:\'Courier Prime\',monospace;font-size:10px;color:#7a6040;">'+day.exercises.length+' exercises</div>';}
     html+='</div>';
+    if(day.notes&&!day.rest){
+      html+='<div style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#7a1010;padding:6px 12px;background:#fdf0f0;border-bottom:1px solid #d9c484;letter-spacing:0.5px;">&#9888; '+day.notes+'</div>';
+    }
     if(!day.rest){
-      var bodyOpen=(isToday&&!document.getElementById('day-body-'+prog+'-'+d))?' open':'';
+      // Always force-open today regardless of autoExpand — non-negotiable
+      var isAlreadyOpen=document.getElementById('day-body-'+prog+'-'+d)&&document.getElementById('day-body-'+prog+'-'+d).classList.contains('open');
+      var bodyOpen=(isToday||isAlreadyOpen)?' open':'';
       html+='<div class="day-body'+bodyOpen+'" id="day-body-'+prog+'-'+d+'">';
+      // Unified rules strip — always visible in every day
+      html+='<div style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#7a6040;padding:5px 8px;border-bottom:1px dashed #d9c484;line-height:1.7;">';
+      html+='&#8250; Push hard. Hit top reps &rarr; increase weight next session.';
+      if(d===3)html+=' &nbsp;&#9888; Day 4: protect shoulder &mdash; keep 1&ndash;2 reps in reserve.';
+      html+='</div>';
       for(var e=0;e<day.exercises.length;e++){
         var ex=day.exercises[e];
         // Check if any set in this exercise is done
@@ -3157,10 +3308,15 @@ function renderWorkoutProgram(prog){
             html+='<button onclick="adjReps(\''+key+'\',1,\''+prog+'\','+d+')" style="background:#2a7a2a;color:#fff;border:none;width:32px;height:32px;font-size:18px;cursor:pointer;border-radius:3px;padding:0;flex-shrink:0;">+</button>';
           }
           // Done button
-          html+='<button onclick="toggleSetDone(\''+key+'\',\''+prog+'\','+d+')" style="background:'+(done?'#2a7a2a':'#1a0d00')+';border:none;color:#f0dca8;font-family:\'Special Elite\',cursive;font-size:11px;letter-spacing:1px;padding:8px 10px;cursor:pointer;border-radius:3px;white-space:nowrap;flex-shrink:0;">'+(done?'&#10003;':'Done')+'</button>';
+          html+='<button onclick="toggleSetDone(\''+key+'\',\''+prog+'\','+d+')" class="set-btn'+(done?' done':'')+'" style="background:'+(done?'#2a7a2a':'#1a0d00')+';border:none;color:#f0dca8;font-family:\'Special Elite\',cursive;font-size:11px;letter-spacing:1px;padding:8px 10px;cursor:pointer;border-radius:3px;white-space:nowrap;flex-shrink:0;">'+(done?'&#10003;':'Done')+'</button>';
           html+='</div>';
         }
-        html+='</div></div>';
+        html+='</div>';
+        // Progression feedback — when ALL sets for this exercise are done
+        if(anyDone&&allDone){
+          html+='<div style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#2a7a2a;padding:4px 12px;background:#e8f5e8;border-top:1px dashed #2a7a2a;">All sets complete &rarr; increase weight next session.</div>';
+        }
+        html+='</div>';
       }
       html+='<button class="log-workout-btn" onclick="logWorkoutToExercise(\''+prog+'\','+d+')">&#10003; Log This Workout</button>';
       html+='</div>';
@@ -3168,6 +3324,16 @@ function renderWorkoutProgram(prog){
     html+='</div>';
   }
   el.innerHTML=html;
+  // Always scroll today into view when rendering current plan
+  if(autoExpand||currentProg==='current'){
+    setTimeout(function(){
+      var todayDow2=(new Date().getDay()+6)%7;
+      var todayBody=document.getElementById('day-body-'+prog+'-'+todayDow2);
+      if(todayBody&&todayBody.classList.contains('open')){
+        todayBody.scrollIntoView({behavior:'smooth',block:'start'});
+      }
+    },150);
+  }
 }
 
 function toggleEx(id){
@@ -3199,7 +3365,17 @@ function adjReps(key,delta,prog,d){
 
 function toggleDay(id){
   var el=document.getElementById('day-body-'+id);
-  if(el)el.classList.toggle('open');
+  if(el){
+    el.classList.toggle('open');
+    // Inject rule strip when opening
+    if(el.classList.contains('open')&&!el.querySelector('.rule-strip')){
+      var strip=document.createElement('div');
+      strip.className='rule-strip';
+      strip.style.cssText='font-family:Courier Prime,monospace;font-size:9px;color:#7a6040;padding:5px 8px;border-bottom:1px dashed #d9c484;';
+      strip.textContent='Hit top reps \u2192 increase weight next time. Miss reps \u2192 hold weight. Day 4: protect shoulder (1\u20132 reps in reserve).';
+      el.insertBefore(strip,el.firstChild);
+    }
+  }
 }
 
 function toggleSetDone(key,prog,d){
@@ -3222,6 +3398,33 @@ function toggleSetDone(key,prog,d){
   for(var i=0;i<bodies.length;i++){if(bodies[i].classList.contains('open'))openDays[bodies[i].id]=true;}
   renderWorkoutProgram(prog);
   for(var id in openDays){var el=document.getElementById(id);if(el)el.classList.add('open');}
+  // Run completion feedback on DOM after render
+  setTimeout(checkAllExerciseCompletion,50);
+}
+
+function checkAllExerciseCompletion(){
+  // Find every exercise block and check if all its .set-btn buttons have .done
+  var exItems=document.querySelectorAll('.ex-item');
+  for(var i=0;i<exItems.length;i++){
+    var item=exItems[i];
+    var setBtns=item.querySelectorAll('.set-btn');
+    if(setBtns.length===0)continue;
+    var allDone=true;
+    for(var j=0;j<setBtns.length;j++){
+      if(!setBtns[j].classList.contains('done')){allDone=false;break;}
+    }
+    // Remove existing feedback if present
+    var existing=item.querySelector('.progression-msg');
+    if(existing)existing.remove();
+    // Inject feedback if all done
+    if(allDone){
+      var msg=document.createElement('div');
+      msg.className='progression-msg';
+      msg.style.cssText='font-family:Courier Prime,monospace;font-size:9px;color:#2a7a2a;padding:4px 12px;background:#e8f5e8;border-top:1px dashed #2a7a2a;';
+      msg.textContent='All sets complete \u2192 increase weight next session.';
+      item.appendChild(msg);
+    }
+  }
 }
 
 /* ── REST TIMER ── */
@@ -3315,8 +3518,239 @@ window.addEventListener('load',function(){
       console.log('SW failed:', err);
     });
   }
-  renderWorkoutProgram('ppl');
+  // Load current plan program from localStorage
+  loadCurrentPlan();
+  // Render current plan tab with today auto-open (tab is hidden, scroll handled when tab opens)
+  var planKey=S.currentPlanKey||'current';
+  renderWorkoutProgram(planKey,true);
 });
+
+/* ── BEHAVIOR LAYER (self-contained) ── */
+(function(){
+  var RULE_TEXT='Hit top reps \u2192 increase weight. Miss reps \u2192 hold weight. Day 4 protect shoulder (1\u20132 reps in reserve).';
+
+  function injectRuleStrips(){
+    var bodies=document.querySelectorAll('.day-body');
+    for(var i=0;i<bodies.length;i++){
+      if(!bodies[i].querySelector('.rule-strip')){
+        var d=document.createElement('div');
+        d.className='rule-strip';
+        d.style.cssText='font-family:monospace;font-size:9px;color:#7a6040;padding:4px 8px;border-bottom:1px dashed #ccc;';
+        d.textContent=RULE_TEXT;
+        bodies[i].insertBefore(d,bodies[i].firstChild);
+      }
+    }
+  }
+
+  function checkCompletion(exItem){
+    var btns=exItem.querySelectorAll('.set-btn');
+    if(!btns.length)return;
+    var allDone=true;
+    for(var i=0;i<btns.length;i++){if(!btns[i].classList.contains('done')){allDone=false;break;}}
+    var msg=exItem.querySelector('.prog-msg');
+    if(allDone){
+      if(!msg){
+        msg=document.createElement('div');
+        msg.className='prog-msg';
+        msg.style.cssText='font-family:monospace;font-size:9px;color:#2a7a2a;padding:4px 8px;';
+        msg.textContent='All sets complete \u2192 increase weight next session';
+        exItem.appendChild(msg);
+      }
+    }else{
+      if(msg)msg.parentNode.removeChild(msg);
+    }
+  }
+
+  function wireSetBtns(){
+    var btns=document.querySelectorAll('.set-btn');
+    for(var i=0;i<btns.length;i++){
+      if(btns[i]._wired)continue;
+      btns[i]._wired=true;
+      (function(btn){
+        btn.addEventListener('click',function(){
+          var ex=btn.closest?btn.closest('.ex-item'):null;
+          if(!ex){var p=btn.parentNode;while(p&&!p.classList.contains('ex-item'))p=p.parentNode;ex=p;}
+          if(ex)setTimeout(function(){checkCompletion(ex);},50);
+        });
+      })(btns[i]);
+    }
+  }
+
+  function openToday(){
+    var jsDay=new Date().getDay();
+    var idx=(jsDay===0)?6:(jsDay-1);
+    var cards=document.querySelectorAll('#prog-current .day-card');
+    if(!cards.length)cards=document.querySelectorAll('.day-card');
+    var target=cards[idx];
+    if(!target)return;
+    var body=target.querySelector('.day-body');
+    if(!body)return;
+    body.classList.add('open');
+    injectRuleStrips();
+    wireSetBtns();
+    requestAnimationFrame(function(){
+      target.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
+
+  function loadSavedProgram(){
+    var saved=localStorage.getItem('currentProgram');
+    if(!saved)return;
+    var tabs=document.querySelectorAll('.prog-tab');
+    for(var i=0;i<tabs.length;i++){
+      if(tabs[i].innerText.trim()===saved){tabs[i].click();return;}
+    }
+  }
+
+  function saveProgramOnClick(){
+    var tabs=document.querySelectorAll('.prog-tab');
+    for(var i=0;i<tabs.length;i++){
+      (function(tab){
+        tab.addEventListener('click',function(){
+          localStorage.setItem('currentProgram',tab.innerText.trim());
+          setTimeout(function(){injectRuleStrips();wireSetBtns();},400);
+        });
+      })(tabs[i]);
+    }
+  }
+
+  // Wrap switchTab to fire openToday when gym tab opens
+  document.addEventListener('DOMContentLoaded',function(){
+    loadSavedProgram();
+    saveProgramOnClick();
+    var orig=window.switchTab;
+    if(typeof orig==='function'){
+      window.switchTab=function(name,btn){
+        orig.call(this,name,btn);
+        if(name==='workouts')setTimeout(openToday,350);
+      };
+    }
+  });
+})();
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var dayCards = document.querySelectorAll(".day-card");
+  if (dayCards.length) {
+    var today = new Date().getDay();
+    if (today === 0) today = dayCards.length - 1;
+    else today = today - 1;
+    var target = dayCards[today];
+    var body = target && target.querySelector(".day-body");
+    if (body) {
+      body.classList.add("open");
+      setTimeout(function() {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 200);
+    }
+  }
+  var tabs = document.querySelectorAll(".prog-tab");
+  tabs.forEach(function(tab) {
+    tab.addEventListener("click", function() {
+      localStorage.setItem("currentProgram", tab.innerText.trim());
+    });
+  });
+  var savedProgram = localStorage.getItem("currentProgram");
+  if (savedProgram) {
+    tabs.forEach(function(tab) {
+      if (tab.innerText.trim() === savedProgram) { tab.click(); }
+    });
+  }
+  var RULE_TEXT = "Hit top reps \u2192 increase weight. Miss reps \u2192 hold weight. Day 4 protect shoulder (1\u20132 reps in reserve).";
+  document.querySelectorAll(".day-body").forEach(function(body) {
+    if (!body.querySelector(".rule-strip")) {
+      var div = document.createElement("div");
+      div.className = "rule-strip";
+      div.style.fontSize = "10px";
+      div.style.margin = "6px 0";
+      div.style.color = "#7a6040";
+      div.style.fontFamily = "Courier Prime, monospace";
+      div.textContent = RULE_TEXT;
+      body.prepend(div);
+    }
+  });
+  document.querySelectorAll(".ex-item").forEach(function(exercise) {
+    var buttons = exercise.querySelectorAll(".set-btn");
+    if (!buttons.length) return;
+    var msg = document.createElement("div");
+    msg.style.fontSize = "10px";
+    msg.style.marginTop = "4px";
+    msg.style.color = "#2a7a2a";
+    msg.style.display = "none";
+    msg.textContent = "All sets complete \u2192 increase weight next session";
+    exercise.appendChild(msg);
+    buttons.forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        btn.classList.toggle("done");
+        var allDone = Array.from(buttons).every(function(b) { return b.classList.contains("done"); });
+        msg.style.display = allDone ? "block" : "none";
+      });
+    });
+  });
+});
+</script>
+<script>
+(function(){
+document.addEventListener("DOMContentLoaded",function(){
+const cards=document.querySelectorAll(".day-card");
+if(cards.length){
+let d=new Date().getDay();
+d=(d===0)?cards.length-1:d-1;
+const target=cards[d];
+const body=target&&target.querySelector(".day-body");
+if(body&&!body.classList.contains("open")){
+body.classList.add("open");
+setTimeout(function(){target.scrollIntoView({behavior:"smooth",block:"start"});},200);
+}
+}
+const tabs=document.querySelectorAll(".prog-tab");
+tabs.forEach(function(tab){
+tab.addEventListener("click",function(){
+localStorage.setItem("currentProgram",tab.innerText.trim());
+});
+});
+const saved=localStorage.getItem("currentProgram");
+if(saved){
+tabs.forEach(function(tab){
+if(tab.innerText.trim()===saved){tab.click();}
+});
+}
+const RULE="Hit top reps \u2192 increase weight. Miss reps \u2192 hold weight. Day 4 protect shoulder (1\u20132 reps in reserve).";
+document.querySelectorAll(".day-body").forEach(function(body){
+if(!body.querySelector(".rule-strip")){
+const r=document.createElement("div");
+r.className="rule-strip";
+r.style.fontSize="10px";
+r.style.margin="6px 0";
+r.style.color="#7a6040";
+r.textContent=RULE;
+body.prepend(r);
+}
+});
+document.querySelectorAll(".ex-item").forEach(function(ex){
+const btns=ex.querySelectorAll(".set-btn");
+if(!btns.length)return;
+let msg=ex.querySelector(".progress-msg");
+if(!msg){
+msg=document.createElement("div");
+msg.className="progress-msg";
+msg.style.fontSize="10px";
+msg.style.marginTop="4px";
+msg.style.color="#2a7a2a";
+msg.style.display="none";
+msg.textContent="All sets complete \u2192 increase weight next session";
+ex.appendChild(msg);
+}
+function check(){
+const allDone=Array.from(btns).every(function(b){return b.classList.contains("done");});
+msg.style.display=allDone?"block":"none";
+}
+btns.forEach(function(btn){
+btn.addEventListener("click",function(){setTimeout(check,50);});
+});
+});
+});
+})();
 </script>
 </body>
 </html>
