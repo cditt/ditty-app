@@ -334,8 +334,28 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <input type="password" id="settings-openai" placeholder="sk-...">
     <button class="btn-primary" onclick="requestNotifPermission()" style="background:#1a3a6a;border-color:#0a1a3a;margin-bottom:8px;">&#128276; Enable Notifications</button>
     <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
+    <!-- BACKUP / RESTORE SECTION -->
+    <div style="font-family:'Special Elite',cursive;font-size:10px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;margin:12px 0 6px;border-top:1px solid #d9c484;padding-top:10px;">Data Backup</div>
+    <button onclick="exportSyncBackup()" style="width:100%;background:#1a3a6a;color:#f0dca8;border:none;font-family:'Special Elite',cursive;font-size:11px;letter-spacing:1px;padding:9px;cursor:pointer;text-transform:uppercase;margin-bottom:6px;">&#11015; Export Sync Backup</button>
+    <button onclick="document.getElementById('import-backup-file').click()" style="width:100%;background:#2a5a2a;color:#f0dca8;border:none;font-family:'Special Elite',cursive;font-size:11px;letter-spacing:1px;padding:9px;cursor:pointer;text-transform:uppercase;margin-bottom:6px;">&#11014; Import Sync Backup</button>
+    <input type="file" id="import-backup-file" accept=".json" style="display:none;" onchange="importSyncBackup(this)">
+    <button onclick="showLocalBackups()" style="width:100%;background:none;border:1px solid #7a6040;color:#7a6040;font-family:'Special Elite',cursive;font-size:11px;letter-spacing:1px;padding:9px;cursor:pointer;text-transform:uppercase;margin-bottom:8px;">&#128197; Restore From Local Backup</button>
+    <div id="local-backups-list" style="display:none;max-height:150px;overflow-y:auto;margin-bottom:8px;"></div>
     <button class="btn-secondary" style="width:100%;margin-bottom:8px;" onclick="closeSettings()">Cancel</button>
     <button onclick="confirmReset()" style="width:100%;background:none;border:1px solid #b81c1c;color:#b81c1c;font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;padding:8px;cursor:pointer;text-transform:uppercase;">Reset All Data</button>
+  </div>
+</div>
+
+<!-- BIN RECOVERY MODAL -->
+<div id="bin-recovery-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;">
+  <div style="background:#f0dca8;border:3px solid #b81c1c;padding:24px;width:90%;max-width:380px;">
+    <div style="font-family:'Bebas Neue',cursive;font-size:22px;color:#b81c1c;letter-spacing:3px;margin-bottom:6px;">Data Recovery</div>
+    <div style="font-family:'Courier Prime',monospace;font-size:11px;color:#1a0d00;margin-bottom:16px;line-height:1.6;">Your sync bin ID was not found. Do you have an existing bin ID? Paste it below to reconnect to your data. Do NOT create a new profile unless you are starting fresh — this will permanently replace your data.</div>
+    <label style="font-family:'Special Elite',cursive;font-size:10px;letter-spacing:1px;color:#7a6040;text-transform:uppercase;">Existing Bin ID</label>
+    <input type="text" id="recovery-binid" placeholder="69fb832dc0954111..." style="width:100%;margin-bottom:10px;font-size:12px;padding:8px;border:1px solid #2a1600;background:#fdf6e0;font-family:monospace;">
+    <button onclick="recoveryReconnect()" style="width:100%;background:#1a3a6a;color:#f0dca8;border:none;font-family:'Special Elite',cursive;font-size:12px;letter-spacing:2px;padding:12px;cursor:pointer;text-transform:uppercase;margin-bottom:8px;">&#128279; Reconnect to Existing Data</button>
+    <div style="font-family:'Courier Prime',monospace;font-size:9px;color:#b81c1c;margin-bottom:8px;text-align:center;">&#9888; Only click below if you want to start completely fresh</div>
+    <button onclick="recoveryCreateNew()" style="width:100%;background:none;border:2px solid #b81c1c;color:#b81c1c;font-family:'Special Elite',cursive;font-size:11px;letter-spacing:1px;padding:10px;cursor:pointer;text-transform:uppercase;">Start Fresh (Wipes All Data)</button>
   </div>
 </div>
 
@@ -982,12 +1002,34 @@ function init(){
   updateIF();
   setInterval(updateIF,30000);
   if(S.notifEnabled)startNotifChecks();
+  createDailyBackup();
+  console.log('[INIT] App loaded. Bin ID: '+(S.jsonbinBinId||'NONE'));
+  // Pull fresh data when user returns to the app tab
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'&&S.jsonbinKey&&S.jsonbinBinId){
+      console.log('[SYNC] Tab visible — pulling latest');
+      syncLock=false;// Reset lock in case it got stuck
+      pullSync();
+    }
+  });
 }
 
 function save(){
   S.workoutSets=workoutSets;
   saveCalHistoryEntry();
-  try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+  try{
+    localStorage.setItem('ditty_v3',JSON.stringify(S));
+  }catch(e){
+    // Quota exceeded — try pruning old backups first
+    console.log('[SAVE] localStorage quota error, pruning backups');
+    try{
+      var keys=[];
+      for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('dittyBackup_')===0)keys.push(k);}
+      keys.sort().reverse();
+      for(var j=10;j<keys.length;j++)localStorage.removeItem(keys[j]);
+      localStorage.setItem('ditty_v3',JSON.stringify(S));
+    }catch(e2){console.log('[SAVE] localStorage still full after pruning:',e2);}
+  }
   pushSync();
 }
 
@@ -1037,13 +1079,15 @@ function completeSetup(){
   try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
   // Hide setup screen first so crash doesn't trap user
   document.getElementById('setup-screen').style.display='none';
-  // Now init sync — if bin ID exists it will pull data, otherwise creates new bin
+  // Now init sync — if bin ID exists pull, otherwise show recovery (NEVER auto-create)
   if(S.jsonbinKey){
     try{
       if(S.jsonbinBinId){
-        initSync();// Pull existing data from cloud
+        console.log('[SETUP] Bin ID found, pulling existing data');
+        initSync();
       }else{
-        createBin();// First time — create new bin
+        console.log('[SETUP] No bin ID — showing recovery screen');
+        showBinRecovery();
       }
     }catch(e){}
   }
@@ -1720,8 +1764,12 @@ function saveSettings(){
   if(fg)S.fatGoal=fg;
   S.macroGoals={protein:S.proteinGoal||0,carbs:S.carbsGoal||0,fat:S.fatGoal||0};
   save();
-  if(S.jsonbinKey&&!S.jsonbinBinId)createBin();
-  else if(S.jsonbinKey)pushSync();
+  if(S.jsonbinKey&&!S.jsonbinBinId){
+    console.log('[SETTINGS] No bin ID — showing recovery');
+    showBinRecovery();
+  }else if(S.jsonbinKey){
+    initSync();
+  }
   closeSettings();
   alert('Settings saved!');
 }
@@ -1740,8 +1788,11 @@ function confirmReset(){
   if(confirm('Reset ALL data? This cannot be undone.')){
     var jk=S.jsonbinKey;var gw=S.goalWeight;var ak=S.apiKey;var bid=S.jsonbinBinId;
     var age=S.userAge;var ht=S.userHeight;
-    S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,weight:null,goalWeight:gw,log:[],weightHistory:[],lastReset:new Date().toDateString(),apiKey:ak,pills:JSON.parse(JSON.stringify(DEFAULT_PILLS)),savedFoods:[],userAge:age,userHeight:ht,notifEnabled:S.notifEnabled,jsonbinKey:jk,jsonbinBinId:bid};
-    save();render();closeSettings();alert('Data reset.');
+    S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,weight:null,goalWeight:gw,log:[],weightHistory:[],lastReset:new Date().toDateString(),apiKey:ak,pills:JSON.parse(JSON.stringify(DEFAULT_PILLS)),savedFoods:[],userAge:age,userHeight:ht,notifEnabled:S.notifEnabled,jsonbinKey:jk,jsonbinBinId:bid,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],mealPlan:[],milestonesHit:{},currentPlanKey:'current',workoutSets:{}};
+    workoutSets={};
+    save();render();closeSettings();
+    showBanner('Data reset. Cloud sync updating...',false);
+    alert('Data reset.');
   }
 }
 
@@ -2113,55 +2164,71 @@ function openTodayWorkout(){
 
 function initSync(){
   if(!S.jsonbinKey)return;
+  console.log('[SYNC] initSync, bin='+S.jsonbinBinId);
   pullSync();
   if(SYNC_INTERVAL)clearInterval(SYNC_INTERVAL);
   SYNC_INTERVAL=setInterval(pullSync,30000);
 }
 
+/* ── SYNC LOCK ── */
+var syncLock=false;
+
 function pushSync(isForce){
-  if(!S.jsonbinKey)return;
-  if(!S.jsonbinBinId){createBin();return;}
-  // Always sync workoutSets before pushing
+  if(!S.jsonbinKey){console.log('[SYNC] No key, skip push');return;}
+  if(!S.jsonbinBinId){
+    console.log('[SYNC] Missing bin ID — showing recovery');
+    showBinRecovery();return;
+  }
+  if(syncLock&&!isForce){console.log('[SYNC] Push blocked — lock active');return;}
+  syncLock=true;
   S.workoutSets=workoutSets;
   S.lastModified=Date.now();
-  // Save locally first
   try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
   var ss=document.getElementById('sync-status');
   if(ss)ss.textContent='pushing...';
+  console.log('[SYNC] Push start ts='+S.lastModified);
   fetch('https://api.jsonbin.io/v3/b/'+S.jsonbinBinId,{
     method:'PUT',
     headers:{'Content-Type':'application/json','X-Master-Key':S.jsonbinKey},
     body:JSON.stringify(S)
   }).then(function(){
+    syncLock=false;
     if(ss)ss.textContent='pushed \u2713';
+    console.log('[SYNC] Push complete');
     setTimeout(function(){if(ss)ss.textContent='';},3000);
     if(isForce)showBanner('Data pushed. Other device syncs in 30s.',false);
   }).catch(function(){
+    syncLock=false;
     if(ss)ss.textContent='push failed';
     if(isForce)showBanner('Push failed. Check internet.',true);
+    console.log('[SYNC] Push failed');
   });
 }
 
 function pullSync(){
-  if(!S.jsonbinKey||!S.jsonbinBinId)return;
+  if(!S.jsonbinKey||!S.jsonbinBinId){console.log('[SYNC] Pull skip — no key/bin');return;}
+  if(syncLock){console.log('[SYNC] Pull blocked — lock active');return;}
+  syncLock=true;
   var ss=document.getElementById('sync-status');
+  console.log('[SYNC] Pull start bin='+S.jsonbinBinId);
   fetch('https://api.jsonbin.io/v3/b/'+S.jsonbinBinId+'/latest',{
     headers:{'X-Master-Key':S.jsonbinKey}
   }).then(function(r){return r.json();}).then(function(data){
-    if(!data||!data.record)return;
+    if(!data||!data.record){syncLock=false;return;}
     var remote=data.record;
+    // Guard against corrupt/partial payload
+    if(typeof remote!=='object'||Array.isArray(remote)){
+      syncLock=false;
+      console.log('[SYNC] Remote payload invalid type, ignoring');
+      return;
+    }
     var remoteTime=remote.lastModified||0;
     var localTime=S.lastModified||0;
-    // Only pull if remote is NEWER than local
-    if(remoteTime<=localTime)return;
-    // Preserve device-specific keys
-    var binId=S.jsonbinBinId;
-    var jk=S.jsonbinKey;
-    // Overwrite local with remote
+    if(remoteTime<=localTime){syncLock=false;console.log('[SYNC] Remote not newer, skip');return;}
+    console.log('[SYNC] Applying pull remote='+remoteTime+' local='+localTime);
+    var binId=S.jsonbinBinId;var jk=S.jsonbinKey;
     S=Object.assign({},S,remote);
-    S.jsonbinBinId=binId;
-    S.jsonbinKey=jk;
-    // Safety checks for required arrays/objects
+    S.jsonbinBinId=binId;S.jsonbinKey=jk;
     if(!S.pills||S.pills.length===0)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
     if(!S.savedFoods)S.savedFoods=[];
     if(!S.workoutSets)S.workoutSets={};
@@ -2172,16 +2239,21 @@ function pullSync(){
     if(!S.customPrograms)S.customPrograms=[];
     workoutSets=S.workoutSets;
     try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+    syncLock=false;
     render();
     if(ss){ss.textContent='synced \u2713';setTimeout(function(){ss.textContent='';},3000);}
+    console.log('[SYNC] Pull complete');
   }).catch(function(err){
+    syncLock=false;
     if(ss){ss.textContent='sync err';setTimeout(function(){ss.textContent='';},3000);}
+    console.log('[SYNC] Pull error:',err);
   });
 }
 
 function createBin(){
   if(!S.jsonbinKey)return;
   S.lastModified=Date.now();
+  console.log('[SYNC] Creating new bin...');
   fetch('https://api.jsonbin.io/v3/b',{
     method:'POST',
     headers:{'Content-Type':'application/json','X-Master-Key':S.jsonbinKey,'X-Bin-Name':'DittyFatJourney','X-Bin-Private':'true'},
@@ -2190,9 +2262,167 @@ function createBin(){
     if(data&&data.metadata&&data.metadata.id){
       S.jsonbinBinId=data.metadata.id;
       try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
-      alert('Cloud sync enabled! Bin ID: '+S.jsonbinBinId);
+      console.log('[SYNC] New bin: '+S.jsonbinBinId);
+      alert('\u2705 Sync enabled!\n\nYour Bin ID:\n'+S.jsonbinBinId+'\n\n\u26a0\ufe0f SAVE THIS. Use Settings \u2192 Export Sync Backup now.');
     }
-  }).catch(function(e){console.error('Sync setup failed:',e);});
+  }).catch(function(e){console.error('[SYNC] Create failed:',e);});
+}
+
+/* ── BIN RECOVERY ── */
+function showBinRecovery(){
+  console.log('[SYNC] Showing recovery screen');
+  var m=document.getElementById('bin-recovery-modal');
+  if(m)m.style.display='flex';
+}
+
+function hideBinRecovery(){
+  var m=document.getElementById('bin-recovery-modal');
+  if(m)m.style.display='none';
+}
+
+function recoveryReconnect(){
+  var bid=document.getElementById('recovery-binid').value.trim();
+  if(!bid){alert('Paste your Bin ID first.');return;}
+  if(!S.jsonbinKey){alert('Enter your JSONBin sync key in Settings first.');return;}
+  // Validate the bin is accessible before committing to it
+  var recovBtn=document.getElementById('recovery-binid');
+  if(recovBtn)recovBtn.disabled=true;
+  console.log('[RECOVERY] Validating bin: '+bid);
+  fetch('https://api.jsonbin.io/v3/b/'+bid+'/latest',{headers:{'X-Master-Key':S.jsonbinKey}})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(recovBtn)recovBtn.disabled=false;
+    if(!data||!data.record){
+      alert('Could not access that bin. Check your Bin ID and sync key.');
+      console.log('[RECOVERY] Bin validation failed — no record');
+      return;
+    }
+    // Valid — commit the bin ID and pull data
+    S.jsonbinBinId=bid;
+    try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+    hideBinRecovery();
+    console.log('[RECOVERY] Bin validated and reconnected: '+bid);
+    showBanner('Reconnected. Pulling your data now...',false);
+    syncLock=false;
+    pullSync();
+  })
+  .catch(function(err){
+    if(recovBtn)recovBtn.disabled=false;
+    alert('Network error validating bin. Check your internet and try again.');
+    console.log('[RECOVERY] Validation network error:',err);
+  });
+}
+
+function recoveryCreateNew(){
+  if(!confirm('WARNING: This creates a brand-new profile and ERASES all existing data.\n\nAre you 100% sure?\n\nThis cannot be undone.'))return;
+  S.jsonbinBinId=null;
+  createBin();
+  hideBinRecovery();
+}
+
+/* ── DAILY BACKUP ── */
+function createDailyBackup(){
+  try{
+    var today=new Date().toISOString().slice(0,10);
+    var key='dittyBackup_'+today;
+    if(localStorage.getItem(key))return;
+    localStorage.setItem(key,JSON.stringify(S));
+    console.log('[BACKUP] Daily snapshot: '+today);
+    var keys=[];
+    for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('dittyBackup_')===0)keys.push(k);}
+    keys.sort().reverse();
+    for(var j=30;j<keys.length;j++){localStorage.removeItem(keys[j]);console.log('[BACKUP] Pruned '+keys[j]);}
+  }catch(e){console.log('[BACKUP] Failed:',e);}
+}
+
+function showLocalBackups(){
+  var el=document.getElementById('local-backups-list');
+  if(!el)return;
+  if(el.style.display==='block'){el.style.display='none';return;}
+  var keys=[];
+  for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('dittyBackup_')===0)keys.push(k);}
+  keys.sort().reverse();
+  if(!keys.length){el.innerHTML='<p style="font-family:Courier Prime,monospace;font-size:10px;color:#7a6040;padding:6px;">No local backups found.</p>';el.style.display='block';return;}
+  var html='';
+  for(var j=0;j<keys.length;j++){
+    var date=keys[j].replace('dittyBackup_','');
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px dashed #d9c484;">';
+    html+='<span style="font-family:Courier Prime,monospace;font-size:10px;color:#1a0d00;">'+date+'</span>';
+    html+='<button onclick="restoreFromLocalBackup(\''+keys[j]+'\')" style="background:#1a3a6a;color:#f0dca8;border:none;font-family:Special Elite,cursive;font-size:9px;padding:4px 8px;cursor:pointer;letter-spacing:1px;">Restore</button>';
+    html+='</div>';
+  }
+  el.innerHTML=html;
+  el.style.display='block';
+}
+
+function restoreFromLocalBackup(key){
+  if(!confirm('Restore from '+key.replace('dittyBackup_','')+'?\nThis overwrites current data.'))return;
+  try{
+    var raw=localStorage.getItem(key);
+    if(!raw){alert('Backup not found.');return;}
+    var backup=JSON.parse(raw);
+    var jk=S.jsonbinKey;var bid=S.jsonbinBinId;
+    S=Object.assign({},backup);
+    S.jsonbinKey=jk;S.jsonbinBinId=bid;
+    workoutSets=S.workoutSets||{};
+    localStorage.setItem('ditty_v3',JSON.stringify(S));
+    render();closeSettings();
+    showBanner('Restored from '+key.replace('dittyBackup_','')+'. Tap sync to push.',false);
+    console.log('[BACKUP] Restored from '+key);
+  }catch(e){alert('Restore failed: '+e.message);}
+}
+
+function exportSyncBackup(){
+  try{
+    var backup={appData:S,binId:S.jsonbinBinId,lastModified:S.lastModified,exportedAt:new Date().toISOString(),version:'ditty_v3'};
+    var blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;a.download='ditty-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+    URL.revokeObjectURL(url);
+    showBanner('Backup exported. Save it somewhere safe.',false);
+    console.log('[BACKUP] Export done');
+  }catch(e){alert('Export failed: '+e.message);}
+}
+
+function importSyncBackup(input){
+  var file=input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var backup=JSON.parse(e.target.result);
+      if(!backup||typeof backup!=='object'){alert('Invalid backup: not a valid JSON object.');return;}
+      if(!backup.appData||typeof backup.appData!=='object'){alert('Invalid backup: missing app data.');return;}
+      if(!backup.binId||typeof backup.binId!=='string'||backup.binId.length<10){alert('Invalid backup: missing or invalid Bin ID.');return;}
+      if(backup.version&&backup.version!=='ditty_v3'){
+        if(!confirm('This backup may be from a different version ('+backup.version+'). Import anyway?'))return;
+      }
+      if(!confirm('Import backup from '+(backup.exportedAt||'unknown date')+'?\nBin ID: '+backup.binId+'\n\nThis overwrites current data.'))return;
+      var jk=S.jsonbinKey;
+      S=Object.assign({},backup.appData);
+      S.jsonbinKey=jk||backup.appData.jsonbinKey;
+      S.jsonbinBinId=backup.binId;
+      if(!S.pills||!S.pills.length)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
+      if(!S.savedFoods)S.savedFoods=[];
+      if(!S.workoutSets)S.workoutSets={};
+      if(!S.mealPlan)S.mealPlan=[];
+      if(!S.calHistory)S.calHistory={};
+      if(!S.milestonesHit)S.milestonesHit={};
+      if(!S.workoutHistory)S.workoutHistory=[];
+      if(!S.customPrograms)S.customPrograms=[];
+      if(!S.log)S.log=[];
+      if(!S.weightHistory)S.weightHistory=[];
+      workoutSets=S.workoutSets;
+      try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){console.log('[BACKUP] localStorage write failed:',e);}
+      syncLock=false;
+      render();closeSettings();
+      showBanner('Backup imported. Tap sync to push to cloud.',false);
+      console.log('[BACKUP] Import complete, bin='+S.jsonbinBinId+', exported='+backup.exportedAt);
+      if(S.jsonbinKey&&S.jsonbinBinId)initSync();
+    }catch(err){alert('Import failed: '+err.message);console.log('[BACKUP] Import error:',err);}
+  };
+  reader.readAsText(file);
+  input.value='';
 }
 
 /* ── MACRO GOALS ── */
@@ -3614,82 +3844,15 @@ window.addEventListener('load',function(){
     }
   }
 
-  // Wrap switchTab to fire openToday when gym tab opens
-  document.addEventListener('DOMContentLoaded',function(){
-    loadSavedProgram();
-    saveProgramOnClick();
-    var orig=window.switchTab;
-    if(typeof orig==='function'){
-      window.switchTab=function(name,btn){
-        orig.call(this,name,btn);
-        if(name==='workouts')setTimeout(openToday,350);
-      };
-    }
-  });
-})();
-</script>
-
-<script>
-(function(){
-document.addEventListener("DOMContentLoaded",function(){
-var cards=document.querySelectorAll(".day-card");
-if(cards.length){
-var d=new Date().getDay();
-d=(d===0)?cards.length-1:d-1;
-var target=cards[d];
-var body=target&&target.querySelector(".day-body");
-if(body&&!body.classList.contains("open")){
-body.classList.add("open");
-setTimeout(function(){target.scrollIntoView({behavior:"smooth",block:"start"});},200);
-}
-}
-var tabs=document.querySelectorAll(".prog-tab");
-tabs.forEach(function(tab){
-tab.addEventListener("click",function(){
-localStorage.setItem("currentProgram",tab.innerText.trim());
-});
-});
-var saved=localStorage.getItem("currentProgram");
-if(saved){
-tabs.forEach(function(tab){
-if(tab.innerText.trim()===saved){tab.click();}
-});
-}
-var RULE="Hit top reps → increase weight. Miss reps → hold weight. Day 4 protect shoulder (1–2 reps in reserve).";
-document.querySelectorAll(".day-body").forEach(function(body){
-if(!body.querySelector(".rule-strip")){
-var r=document.createElement("div");
-r.className="rule-strip";
-r.style.fontSize="10px";
-r.style.margin="6px 0";
-r.style.color="#7a6040";
-r.textContent=RULE;
-body.prepend(r);
-}
-});
-document.querySelectorAll(".ex-item").forEach(function(ex){
-var btns=ex.querySelectorAll(".set-btn");
-if(!btns.length)return;
-var msg=ex.querySelector(".progress-msg");
-if(!msg){
-msg=document.createElement("div");
-msg.className="progress-msg";
-msg.style.fontSize="10px";
-msg.style.marginTop="4px";
-msg.style.color="#2a7a2a";
-msg.style.display="none";
-msg.textContent="All sets complete → increase weight next session";
-ex.appendChild(msg);
-}
-function check(){
-var allDone=Array.from(btns).every(function(b){return b.classList.contains("done");});
-msg.style.display=allDone?"block":"none";
-}
-btns.forEach(function(btn){
-btn.addEventListener("click",function(){setTimeout(check,50);});
-});
-});
-});
+  // Wrap switchTab to fire openToday when gym tab opens — runs after app init
+  var _origSwitchTab2=window.switchTab;
+  if(typeof _origSwitchTab2==='function'&&!_origSwitchTab2._gymHooked){
+    window.switchTab=function(name,btn){
+      _origSwitchTab2.call(this,name,btn);
+      if(name==='workouts')setTimeout(openToday,350);
+    };
+    window.switchTab._gymHooked=true;
+  }
 })();
 </script>
 </body>
