@@ -313,6 +313,7 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <label>JSONBin Sync Key</label>
     <input type="password" id="settings-jsonbin" placeholder="$2b$10$...">
     <label>JSONBin Bin ID <span style="font-size:9px;color:#b81c1c;">(copy this to other device)</span></label>
+    <div style="font-family:'Courier Prime',monospace;font-size:9px;color:#2a7a2a;margin-bottom:4px;">&#128275; Bin ID can be public. Sync key must stay private.</div>
     <div style="display:flex;gap:6px;margin-bottom:8px;">
       <input type="text" id="settings-binid" placeholder="paste bin ID here" style="margin-bottom:0;flex:1;font-size:12px;">
       <button onclick="copyBinId()" class="btn-secondary" style="white-space:nowrap;padding:6px 10px;font-size:10px;">Copy</button>
@@ -931,13 +932,29 @@ var currentPhotoItems=null;
 var notifCheckInterval=null;
 var lastWaterNotifHour=-1,lastIFNotifDay='',lastPillNotifDay='';
 var SYNC_INTERVAL=null;
+var DEFAULT_BIN_ID='69fbc6d7adc21f119a63898a';
 
 function init(){
   try{var saved=localStorage.getItem('ditty_v3');if(saved)S=Object.assign({},S,JSON.parse(saved));}catch(e){}
+  // Bin ID fallback — hardcoded so cache clears never lose sync
+  if(!S.jsonbinBinId||S.jsonbinBinId.length<10){
+    if(DEFAULT_BIN_ID){
+      console.log('[INIT] Using DEFAULT_BIN_ID fallback');
+      S.jsonbinBinId=DEFAULT_BIN_ID;
+      try{localStorage.setItem('ditty_v3',JSON.stringify(S));console.log('[INIT] Restored localStorage bin ID from fallback');}catch(e){}
+    }
+  }else{
+    console.log('[INIT] Using localStorage bin ID: '+S.jsonbinBinId);
+  }
   if(!S.pills||S.pills.length===0){S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));}
   if(!S.savedFoods)S.savedFoods=[];
   if(!S.workoutSets)S.workoutSets={};
   loadCurrentPlan();
+  // Warn if sync key is missing — bin ID alone is useless without it
+  if(S.jsonbinBinId&&!S.jsonbinKey){
+    console.log('[INIT] Bin ID present but sync key missing — user must enter key in Settings');
+    showBanner('Enter your JSONBin sync key in Settings to enable sync.',true);
+  }
   // Pre-fill Monday Push (PPL=0, day=0) and Thursday Legs (PPL=0, day=3) from screenshots
   var PREFILL={
     // Monday Push — exercise index: 0=Bench, 1=Incline DB, 2=Overhead, 3=Lateral, 4=Tricep Push, 5=OHT Ext
@@ -1702,7 +1719,8 @@ function openSettings(){
   document.getElementById('settings-jsonbin').value=S.jsonbinKey||'';
   document.getElementById('settings-binid').value=S.jsonbinBinId||'';
   var disp=document.getElementById('settings-binid-display');
-  if(disp)disp.textContent=S.jsonbinBinId?('Bin ID: '+S.jsonbinBinId):'No bin created yet';
+  var isDefault=S.jsonbinBinId===DEFAULT_BIN_ID;
+  if(disp)disp.textContent=S.jsonbinBinId?('Bin ID: '+S.jsonbinBinId+(isDefault?' (default)':'')):'No bin ID set';
   document.getElementById('settings-goal').value=S.goalWeight||'';
   document.getElementById('settings-age').value=S.userAge||'';
   document.getElementById('settings-height').value=S.userHeight||'';
@@ -2241,7 +2259,15 @@ function createBin(){
 
 /* ── BIN RECOVERY ── */
 function showBinRecovery(){
-  console.log('[SYNC] Showing recovery screen');
+  // If DEFAULT_BIN_ID exists, apply it silently — never show modal
+  if(DEFAULT_BIN_ID&&DEFAULT_BIN_ID.length>10){
+    console.log('[RECOVERY] Skipped — applying DEFAULT_BIN_ID fallback');
+    S.jsonbinBinId=DEFAULT_BIN_ID;
+    try{localStorage.setItem('ditty_v3',JSON.stringify(S));console.log('[INIT] Restored localStorage bin ID from fallback');}catch(e){}
+    if(S.jsonbinKey){syncLock=false;initSync();}
+    return;
+  }
+  console.log('[RECOVERY] No fallback — showing recovery screen');
   var m=document.getElementById('bin-recovery-modal');
   if(m)m.style.display='flex';
 }
