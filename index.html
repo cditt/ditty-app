@@ -2163,20 +2163,38 @@ function initSync(){
 /* ── SYNC LOCK ── */
 var syncLock=false;
 
+/* ── SYNC DATA RICHNESS CHECK ── */
+function isMeaningfullyPopulated(d){
+  if(!d||typeof d!=='object')return false;
+  var logCount=(d.log&&d.log.length)||0;
+  var weightCount=(d.weightHistory&&d.weightHistory.length)||0;
+  var workoutCount=(d.workoutHistory&&d.workoutHistory.length)||0;
+  var hasGoalWeight=!!(d.goalWeight&&d.goalWeight>0);
+  var hasApiKey=!!(d.apiKey&&d.apiKey.length>10);
+  var hasCalories=!!(d.calories&&d.calories>0);
+  var hasWater=!!(d.water&&d.water>0);
+  var hasPills=!!(d.pills&&d.pills.length>0);
+  var score=logCount+(weightCount*2)+(workoutCount*2)+(hasGoalWeight?3:0)+(hasApiKey?3:0)+(hasCalories?1:0)+(hasWater?1:0)+(hasPills?1:0);
+  return score>=2;
+}
+
 function pushSync(isForce){
   if(!S.jsonbinKey){console.log('[SYNC] No key, skip push');return;}
-  if(!S.jsonbinBinId){
-    console.log('[SYNC] Missing bin ID — showing recovery');
-    showBinRecovery();return;
-  }
+  if(!S.jsonbinBinId){console.log('[SYNC] Missing bin ID — recovery');showBinRecovery();return;}
   if(syncLock&&!isForce){console.log('[SYNC] Push blocked — lock active');return;}
+  if(!isMeaningfullyPopulated(S)){
+    console.log('[SYNC] PUSH BLOCKED — local empty/minimal, pulling instead');
+    syncLock=false;
+    pullSync();
+    return;
+  }
   syncLock=true;
   S.workoutSets=workoutSets;
   S.lastModified=Date.now();
   try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
   var ss=document.getElementById('sync-status');
   if(ss)ss.textContent='pushing...';
-  console.log('[SYNC] Push start ts='+S.lastModified);
+  console.log('[SYNC] Push start ts='+S.lastModified+' logCount='+((S.log&&S.log.length)||0));
   fetch('https://api.jsonbin.io/v3/b/'+S.jsonbinBinId,{
     method:'PUT',
     headers:{'Content-Type':'application/json','X-Master-Key':S.jsonbinKey},
@@ -2206,16 +2224,37 @@ function pullSync(){
   }).then(function(r){return r.json();}).then(function(data){
     if(!data||!data.record){syncLock=false;return;}
     var remote=data.record;
-    // Guard against corrupt/partial payload
-    if(typeof remote!=='object'||Array.isArray(remote)){
-      syncLock=false;
-      console.log('[SYNC] Remote payload invalid type, ignoring');
-      return;
-    }
+    if(typeof remote!=='object'||Array.isArray(remote)){syncLock=false;console.log('[SYNC] Remote invalid, ignoring');return;}
     var remoteTime=remote.lastModified||0;
     var localTime=S.lastModified||0;
-    if(remoteTime<=localTime){syncLock=false;console.log('[SYNC] Remote not newer, skip');return;}
-    console.log('[SYNC] Applying pull remote='+remoteTime+' local='+localTime);
+    var localPop=isMeaningfullyPopulated(S);
+    var remotePop=isMeaningfullyPopulated(remote);
+    console.log('[SYNC] local='+localPop+' remote='+remotePop+' remoteTs='+remoteTime+' localTs='+localTime);
+    // RULE 1: remote populated, local empty — always pull
+    if(remotePop&&!localPop){
+      console.log('[SYNC] PULL FORCED — remote has data, local empty');
+    }
+    // RULE 2: both populated — only pull if remote newer
+    else if(localPop&&remotePop){
+      if(remoteTime<=localTime){syncLock=false;console.log('[SYNC] Both populated, remote not newer — skip');return;}
+      console.log('[SYNC] Both populated, remote newer — pulling');
+    }
+    // RULE 3: local populated, remote empty — BLOCK pull, protect local
+    else if(localPop&&!remotePop){
+      syncLock=false;
+      console.log('[SYNC] PULL BLOCKED — remote empty, local has data — protected');
+      return;
+    }
+    // RULE 4: both empty — skip
+    else{syncLock=false;console.log('[SYNC] Both empty — skip');return;}
+    // Emergency backup before applying remote
+    try{
+      var bkKey='dittyEmergency_'+Date.now();
+      localStorage.setItem(bkKey,JSON.stringify(S));
+      var eks=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('dittyEmergency_')===0)eks.push(k);}
+      eks.sort();for(var j=0;j<eks.length-5;j++)localStorage.removeItem(eks[j]);
+      console.log('[SYNC] Emergency backup: '+bkKey);
+    }catch(e){}
     var binId=S.jsonbinBinId;var jk=S.jsonbinKey;
     S=Object.assign({},S,remote);
     S.jsonbinBinId=binId;S.jsonbinKey=jk;
@@ -2231,13 +2270,14 @@ function pullSync(){
     syncLock=false;
     render();
     if(ss){ss.textContent='synced \u2713';setTimeout(function(){ss.textContent='';},3000);}
-    console.log('[SYNC] Pull complete');
+    console.log('[SYNC] Pull complete — logCount='+((S.log&&S.log.length)||0));
   }).catch(function(err){
     syncLock=false;
     if(ss){ss.textContent='sync err';setTimeout(function(){ss.textContent='';},3000);}
     console.log('[SYNC] Pull error:',err);
   });
 }
+
 
 function createBin(){
   if(!S.jsonbinKey)return;
