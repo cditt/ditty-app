@@ -937,6 +937,15 @@ var lastWaterNotifHour=-1,lastIFNotifDay='',lastPillNotifDay='';
 var SYNC_INTERVAL=null;
 var DEFAULT_BIN_ID='69fbc6d7adc21f119a63898a';
 
+/* ── LOCAL DATE HELPER — never use UTC for date logic ── */
+function getLocalDateKey(){
+  var d=new Date();
+  var yyyy=d.getFullYear();
+  var mm=String(d.getMonth()+1).padStart(2,'0');
+  var dd=String(d.getDate()).padStart(2,'0');
+  return yyyy+'-'+mm+'-'+dd;
+}
+
 function init(){
   try{var saved=localStorage.getItem('ditty_v3');if(saved)S=Object.assign({},S,JSON.parse(saved));}catch(e){}
   // Bin ID fallback — hardcoded so cache clears never lose sync
@@ -997,13 +1006,14 @@ function init(){
   if(S.notifEnabled)startNotifChecks();
   createDailyBackup();
   setupDeviceRole();
-  console.log('[INIT] App loaded. Bin ID: '+(S.jsonbinBinId||'NONE'));
+  console.log('[INIT] App loaded. Bin ID: '+(S.jsonbinBinId||'NONE')+' Date: '+getLocalDateKey()+' lastReset: '+(S.lastReset||'none'));
   // Pull fresh data when user returns to the app tab
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='visible'&&S.jsonbinKey&&S.jsonbinBinId){
       console.log('[SYNC] Tab visible — pulling latest');
-      syncLock=false;// Reset lock in case it got stuck
-      pullSync();
+      // Only pull if not currently syncing — don't blindly reset lock
+      if(!syncLock)pullSync();
+      else console.log('[SYNC] Visibility change — sync already in progress, skipping');
     }
   });
 }
@@ -1040,13 +1050,25 @@ function saveCalHistoryEntry(){
 
 function checkReset(){
   var today=new Date().toDateString();
-  if(S.lastReset!==today){
-    S.calories=0;S.protein=0;S.carbs=0;S.fat=0;S.burned=0;S.water=0;S.steps=0;S.log=[];S.lastReset=today;
-    if(S.pills){
-      for(var i=0;i<S.pills.length;i++){S.pills[i].taken=false;}
-    }
-    save();
+  if(S.lastReset===today){
+    console.log('[RESET] Already reset for today — skip');
+    return;
   }
+  console.log('[RESET] START — new day detected. Was: '+S.lastReset+' Now: '+today);
+  // Emergency backup BEFORE reset
+  try{
+    var bkKey='dittyEmergency_preReset_'+getLocalDateKey();
+    localStorage.setItem(bkKey,JSON.stringify(S));
+    console.log('[RESET] BACKUP CREATED: '+bkKey);
+  }catch(e){console.log('[RESET] Backup failed:',e);}
+  // Reset ONLY daily counters — never touch history/settings/sync
+  S.calories=0;S.protein=0;S.carbs=0;S.fat=0;S.burned=0;S.water=0;S.steps=0;S.log=[];
+  S.lastReset=today;
+  if(S.pills){for(var i=0;i<S.pills.length;i++){S.pills[i].taken=false;}}
+  // Save LOCALLY ONLY — never push reset state to cloud
+  // The first real data log of the new day will push
+  try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+  console.log('[RESET] COMPLETE — daily counters zeroed, NOT pushed to cloud');
 }
 
 function checkSetup(){
@@ -2229,12 +2251,18 @@ function isMeaningfullyPopulated(d){
   var logCount=(d.log&&d.log.length)||0;
   var weightCount=(d.weightHistory&&d.weightHistory.length)||0;
   var workoutCount=(d.workoutHistory&&d.workoutHistory.length)||0;
-  var hasGoalWeight=!!(d.goalWeight&&d.goalWeight>0);
-  var hasApiKey=!!(d.apiKey&&d.apiKey.length>10);
   var hasCalories=!!(d.calories&&d.calories>0);
   var hasWater=!!(d.water&&d.water>0);
-  var hasPills=!!(d.pills&&d.pills.length>0);
-  var score=logCount+(weightCount*2)+(workoutCount*2)+(hasGoalWeight?3:0)+(hasApiKey?3:0)+(hasCalories?1:0)+(hasWater?1:0)+(hasPills?1:0);
+  var hasGoalWeight=!!(d.goalWeight&&d.goalWeight>0);
+  var hasApiKey=!!(d.apiKey&&d.apiKey.length>10);
+  // REQUIRE actual user activity data — settings alone don't count
+  // Score: only real activity (logs, history, daily counts) matters
+  var activityScore=logCount+(weightCount*2)+(workoutCount*2)+(hasCalories?2:0)+(hasWater?1:0);
+  // Settings bonus — only adds if there's also some activity
+  var settingsBonus=(hasGoalWeight&&activityScore>0)?1:0;
+  settingsBonus+=(hasApiKey&&activityScore>0)?1:0;
+  var score=activityScore+settingsBonus;
+  console.log('[SYNC] populated check: logs='+logCount+' weights='+weightCount+' workouts='+workoutCount+' cal='+hasCalories+' water='+hasWater+' score='+score);
   return score>=2;
 }
 
@@ -2428,8 +2456,7 @@ function recoveryCreateNew(){
 /* ── DAILY BACKUP ── */
 function createDailyBackup(){
   try{
-    var now=new Date();
-    var today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    var today=getLocalDateKey();
     var key='dittyBackup_'+today;
     if(localStorage.getItem(key))return;
     localStorage.setItem(key,JSON.stringify(S));
