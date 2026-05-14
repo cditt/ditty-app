@@ -336,7 +336,10 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <button class="btn-primary" onclick="requestNotifPermission()" style="background:#1a3a6a;border-color:#0a1a3a;margin-bottom:8px;">&#128276; Enable Notifications</button>
     <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
     <!-- BACKUP / RESTORE SECTION -->
-    <div style="font-family:'Special Elite',cursive;font-size:10px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;margin:12px 0 6px;border-top:1px solid #d9c484;padding-top:10px;">Data Backup</div>
+    <div style="font-family:'Special Elite',cursive;font-size:10px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;margin:12px 0 6px;border-top:1px solid #d9c484;padding-top:10px;">Device Role</div>
+    <div id="device-role-display" style="font-family:'Courier Prime',monospace;font-size:11px;color:#1a0d00;margin-bottom:6px;"></div>
+    <button onclick="switchDeviceRole()" style="width:100%;background:none;border:1px solid #7a6040;color:#7a6040;font-family:'Special Elite',cursive;font-size:11px;letter-spacing:1px;padding:8px;cursor:pointer;text-transform:uppercase;margin-bottom:8px;">Switch Role</button>
+    <div style="font-family:'Special Elite',cursive;font-size:10px;letter-spacing:2px;color:#7a6040;text-transform:uppercase;margin:4px 0 6px;">Data Backup</div>
     <button onclick="exportSyncBackup()" style="width:100%;background:#1a3a6a;color:#f0dca8;border:none;font-family:'Special Elite',cursive;font-size:11px;letter-spacing:1px;padding:9px;cursor:pointer;text-transform:uppercase;margin-bottom:6px;">&#11015; Export Sync Backup</button>
     <button onclick="document.getElementById('import-backup-file').click()" style="width:100%;background:#2a5a2a;color:#f0dca8;border:none;font-family:'Special Elite',cursive;font-size:11px;letter-spacing:1px;padding:9px;cursor:pointer;text-transform:uppercase;margin-bottom:6px;">&#11014; Import Sync Backup</button>
     <input type="file" id="import-backup-file" accept=".json" style="display:none;" onchange="importSyncBackup(this)">
@@ -493,7 +496,7 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <div class="header-inner">
       <div>
         <div class="header-title">Ditty's Fat Journey</div>
-        <div class="header-sub">11am &ndash; 7pm &middot; IF Window &middot; <span id="sync-status"></span> <span id="force-sync-btn" onclick="forcePushSync()" style="cursor:pointer;color:#f0dca8;text-decoration:underline;font-size:9px;">sync</span></div>
+        <div class="header-sub">11am &ndash; 7pm &middot; IF Window &middot; <span id="sync-status"></span> <span id="force-sync-btn" onclick="handleSyncBtn()" style="cursor:pointer;color:#f0dca8;text-decoration:underline;font-size:9px;">sync</span></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div id="if-pill" class="if-pill if-closed">Closed</div>
@@ -993,6 +996,7 @@ function init(){
   setInterval(updateIF,30000);
   if(S.notifEnabled)startNotifChecks();
   createDailyBackup();
+  setupDeviceRole();
   console.log('[INIT] App loaded. Bin ID: '+(S.jsonbinBinId||'NONE'));
   // Pull fresh data when user returns to the app tab
   document.addEventListener('visibilitychange',function(){
@@ -1721,6 +1725,9 @@ function openSettings(){
   var disp=document.getElementById('settings-binid-display');
   var isDefault=S.jsonbinBinId===DEFAULT_BIN_ID;
   if(disp)disp.textContent=S.jsonbinBinId?('Bin ID: '+S.jsonbinBinId+(isDefault?' (default)':'')):'No bin ID set';
+  var role=localStorage.getItem('deviceRole')||'primary';
+  var roleDisp=document.getElementById('device-role-display');
+  if(roleDisp)roleDisp.textContent=role==='mirror'?'MIRROR — pull only (laptop/desktop)':'PRIMARY — can push (phone)';
   document.getElementById('settings-goal').value=S.goalWeight||'';
   document.getElementById('settings-age').value=S.userAge||'';
   document.getElementById('settings-height').value=S.userHeight||'';
@@ -2097,7 +2104,60 @@ function resetSteps(){
 }
 
 function forcePushSync(){
+  if(localStorage.getItem('deviceRole')==='mirror'){
+    console.warn('[SYNC] PUSH BLOCKED ON MIRROR — pulling instead');
+    pullSync();
+    return;
+  }
   pushSync(true);
+}
+
+function switchDeviceRole(){
+  var isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  var current=localStorage.getItem('deviceRole')||(isMobile?'primary':'mirror');
+  var next=current==='mirror'?'primary':'mirror';
+  if(next==='primary'&&!isMobile){
+    if(!confirm('WARNING: Making a desktop/laptop PRIMARY means it can push data to JSONBin.\n\nOnly do this if you know what you are doing.\n\nYour phone should be PRIMARY. Continue?'))return;
+  }
+  if(!confirm('Switch to '+(next==='mirror'?'MIRROR (pull only)':'PRIMARY (can push)')+' mode?'))return;
+  localStorage.setItem('deviceRole',next);
+  var btn=document.getElementById('force-sync-btn');
+  if(btn)btn.textContent=next==='mirror'?'pull':'sync';
+  var roleDisp=document.getElementById('device-role-display');
+  if(roleDisp)roleDisp.textContent=next==='mirror'?'MIRROR — pull only (laptop/desktop)':'PRIMARY — can push (phone)';
+  showBanner('Device role: '+(next==='mirror'?'MIRROR — pull only':'PRIMARY'),false);
+  console.log('[INIT] DEVICE ROLE CHANGED TO: '+next.toUpperCase());
+  closeSettings();
+}
+
+function handleSyncBtn(){
+  var role=localStorage.getItem('deviceRole')||'primary';
+  if(role==='mirror'){
+    console.log('[SYNC] MIRROR PULL ONLY');
+    syncLock=false;
+    pullSync();
+    showBanner('Pulling latest data from phone...',false);
+  }else{
+    forcePushSync();
+  }
+}
+
+function setupDeviceRole(){
+  // Auto-detect device type — mobile = primary, desktop = mirror
+  // Manual override in localStorage takes precedence only if explicitly set
+  var manualRole=localStorage.getItem('deviceRole');
+  var isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  var autoRole=isMobile?'primary':'mirror';
+  // Use manual override only if it was deliberately set AND matches device class
+  // Desktop can never be primary unless user explicitly overrides in Settings
+  var role=manualRole||autoRole;
+  // Safety: if this looks like a desktop but role is primary without manual set, force mirror
+  if(!isMobile&&!manualRole){role='mirror';}
+  // Always save the resolved role
+  if(role!==manualRole)localStorage.setItem('deviceRole',role);
+  console.log('[INIT] DEVICE ROLE: '+(role==='mirror'?'MIRROR — pull only':'PRIMARY — can push')+' (mobile='+isMobile+', manual='+manualRole+')');
+  var btn=document.getElementById('force-sync-btn');
+  if(btn)btn.textContent=role==='mirror'?'pull':'sync';
 }
 
 /* ── OPEN TODAY'S WORKOUT ── */
@@ -2179,6 +2239,14 @@ function isMeaningfullyPopulated(d){
 }
 
 function pushSync(isForce){
+  // HARD BLOCK: mirror devices can NEVER write to cloud
+  // Double-check both localStorage role AND device type
+  var isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  var role=localStorage.getItem('deviceRole')||(isMobile?'primary':'mirror');
+  if(role==='mirror'||!isMobile){
+    console.warn('[SYNC] PUSH BLOCKED ON MIRROR — device='+(!isMobile?'desktop':'mobile')+' role='+role);
+    return;
+  }
   if(!S.jsonbinKey){console.log('[SYNC] No key, skip push');return;}
   if(!S.jsonbinBinId){console.log('[SYNC] Missing bin ID — recovery');showBinRecovery();return;}
   if(syncLock&&!isForce){console.log('[SYNC] Push blocked — lock active');return;}
@@ -2360,7 +2428,8 @@ function recoveryCreateNew(){
 /* ── DAILY BACKUP ── */
 function createDailyBackup(){
   try{
-    var today=new Date().toISOString().slice(0,10);
+    var now=new Date();
+    var today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
     var key='dittyBackup_'+today;
     if(localStorage.getItem(key))return;
     localStorage.setItem(key,JSON.stringify(S));
@@ -2411,11 +2480,13 @@ function restoreFromLocalBackup(key){
 
 function exportSyncBackup(){
   try{
-    var backup={appData:S,binId:S.jsonbinBinId,lastModified:S.lastModified,exportedAt:new Date().toISOString(),version:'ditty_v3'};
+    var exportNow=new Date();
+    var exportDate=exportNow.getFullYear()+'-'+String(exportNow.getMonth()+1).padStart(2,'0')+'-'+String(exportNow.getDate()).padStart(2,'0');
+    var backup={appData:S,binId:S.jsonbinBinId,lastModified:S.lastModified,exportedAt:exportNow.toLocaleString(),version:'ditty_v3'};
     var blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
     var url=URL.createObjectURL(blob);
     var a=document.createElement('a');
-    a.href=url;a.download='ditty-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+    a.href=url;a.download='ditty-backup-'+exportDate+'.json';a.click();
     URL.revokeObjectURL(url);
     showBanner('Backup exported. Save it somewhere safe.',false);
     console.log('[BACKUP] Export done');
