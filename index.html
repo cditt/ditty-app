@@ -2525,35 +2525,96 @@ function importSyncBackup(input){
   var reader=new FileReader();
   reader.onload=function(e){
     try{
+      console.log('[IMPORT] START');
       var backup=JSON.parse(e.target.result);
+
+      // Validate structure
       if(!backup||typeof backup!=='object'){alert('Invalid backup: not a valid JSON object.');return;}
-      if(!backup.appData||typeof backup.appData!=='object'){alert('Invalid backup: missing app data.');return;}
+      if(!backup.appData||typeof backup.appData!=='object'){alert('Invalid backup: missing appData.');return;}
       if(!backup.binId||typeof backup.binId!=='string'||backup.binId.length<10){alert('Invalid backup: missing or invalid Bin ID.');return;}
       if(backup.version&&backup.version!=='ditty_v3'){
         if(!confirm('This backup may be from a different version ('+backup.version+'). Import anyway?'))return;
       }
-      if(!confirm('Import backup from '+(backup.exportedAt||'unknown date')+'?\nBin ID: '+backup.binId+'\n\nThis overwrites current data.'))return;
+
+      console.log('[IMPORT] BACKUP PARSED — exported: '+(backup.exportedAt||'unknown'));
+
+      var d=backup.appData;
+      console.log('[IMPORT] LOG COUNT: '+((d.log&&d.log.length)||0));
+      console.log('[IMPORT] WEIGHT COUNT: '+((d.weightHistory&&d.weightHistory.length)||0));
+      console.log('[IMPORT] PILLS COUNT: '+((d.pills&&d.pills.length)||0));
+      console.log('[IMPORT] WORKOUT HISTORY: '+((d.workoutHistory&&d.workoutHistory.length)||0));
+      console.log('[IMPORT] CAL HISTORY KEYS: '+Object.keys(d.calHistory||{}).length);
+
+      if(!confirm('Import backup from '+(backup.exportedAt||'unknown date')+'?\n\nLogs: '+((d.log&&d.log.length)||0)+'\nWeights: '+((d.weightHistory&&d.weightHistory.length)||0)+'\nBin: '+backup.binId+'\n\nThis overwrites current data.'))return;
+
+      // STOP all sync and save operations during import
+      syncLock=true;
+      if(SYNC_INTERVAL){clearInterval(SYNC_INTERVAL);SYNC_INTERVAL=null;}
+
+      // Preserve current device keys — never import another device's API key
       var jk=S.jsonbinKey;
-      S=Object.assign({},backup.appData);
-      S.jsonbinKey=jk||backup.appData.jsonbinKey;
+      var isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+      // Full replace of S with backup data
+      S=JSON.parse(JSON.stringify(d));// Deep copy — no reference sharing
+
+      // Restore device-specific keys
+      S.jsonbinKey=jk||d.jsonbinKey;
       S.jsonbinBinId=backup.binId;
+
+      // Ensure all required arrays/objects exist
       if(!S.pills||!S.pills.length)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
-      if(!S.savedFoods)S.savedFoods=[];
-      if(!S.workoutSets)S.workoutSets={};
-        if(!S.calHistory)S.calHistory={};
-      if(!S.milestonesHit)S.milestonesHit={};
-      if(!S.workoutHistory)S.workoutHistory=[];
-      if(!S.customPrograms)S.customPrograms=[];
       if(!S.log)S.log=[];
       if(!S.weightHistory)S.weightHistory=[];
+      if(!S.savedFoods)S.savedFoods=[];
+      if(!S.workoutSets)S.workoutSets={};
+      if(!S.workoutHistory)S.workoutHistory=[];
+      if(!S.calHistory)S.calHistory={};
+      if(!S.milestonesHit)S.milestonesHit={};
+      if(!S.customPrograms)S.customPrograms=[];
+      if(!S.mealPlan)S.mealPlan=[];
+      if(!S.log)S.log=[];
+
+      // Sync global workoutSets
       workoutSets=S.workoutSets;
-      try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){console.log('[BACKUP] localStorage write failed:',e);}
+
+      // Write to localStorage FIRST before anything else runs
+      try{
+        localStorage.setItem('ditty_v3',JSON.stringify(S));
+        console.log('[IMPORT] LOCALSTORAGE WRITTEN — '+JSON.stringify(S).length+' bytes');
+      }catch(err){
+        console.log('[IMPORT] localStorage write failed:',err);
+        alert('Import warning: localStorage write failed. Data may not persist after reload.');
+      }
+
+      // Verify counts after write
+      var verify=JSON.parse(localStorage.getItem('ditty_v3')||'{}');
+      console.log('[IMPORT] VERIFY logs='+((verify.log&&verify.log.length)||0)+' weights='+((verify.weightHistory&&verify.weightHistory.length)||0)+' pills='+((verify.pills&&verify.pills.length)||0));
+
+      // Release lock AFTER localStorage write is complete
       syncLock=false;
-      render();closeSettings();
-      showBanner('Backup imported. Tap sync to push to cloud.',false);
-      console.log('[BACKUP] Import complete, bin='+S.jsonbinBinId+', exported='+backup.exportedAt);
-      if(S.jsonbinKey&&S.jsonbinBinId)initSync();
-    }catch(err){alert('Import failed: '+err.message);console.log('[BACKUP] Import error:',err);}
+
+      // Render with imported data — does NOT push (mobile check still applies)
+      try{closeSettings();}catch(ex){}
+      try{render();}catch(ex){console.log('[IMPORT] render error:',ex);}
+
+      showBanner('Import complete. Logs: '+((S.log&&S.log.length)||0)+' Weight entries: '+((S.weightHistory&&S.weightHistory.length)||0),false);
+      console.log('[IMPORT] COMPLETE — bin='+S.jsonbinBinId);
+
+      // Only restart sync on PRIMARY device — mirror never pushes anyway
+      // Use a delay so render() completes before sync starts
+      if(S.jsonbinKey&&S.jsonbinBinId){
+        setTimeout(function(){
+          console.log('[IMPORT] Restarting sync after import');
+          initSync();
+        },2000);
+      }
+
+    }catch(err){
+      syncLock=false;
+      alert('Import failed: '+err.message);
+      console.log('[IMPORT] ERROR:',err);
+    }
   };
   reader.readAsText(file);
   input.value='';
