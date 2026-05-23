@@ -953,7 +953,8 @@ function init(){
     if(DEFAULT_BIN_ID){
       console.log('[INIT] Using DEFAULT_BIN_ID fallback');
       S.jsonbinBinId=DEFAULT_BIN_ID;
-      try{localStorage.setItem('ditty_v3',JSON.stringify(S));console.log('[INIT] Restored localStorage bin ID from fallback');}catch(e){}
+      // Only persist bin ID if user already has credentials — prevents false-positive Recovery Mode on fresh install
+      if(S.apiKey&&S.goalWeight){try{localStorage.setItem('ditty_v3',JSON.stringify(S));console.log('[INIT] Persisted bin ID fallback (credentials present)');}catch(e){}}
     }
   }else{
     console.log('[INIT] Using localStorage bin ID: '+S.jsonbinBinId);
@@ -998,8 +999,8 @@ function init(){
   }catch(e){barcodeDetector=null;}
   checkReset();
   checkSetup();
+  processURL();// URL params written before any async sync starts
   if(S.jsonbinKey)initSync();
-  processURL();
   render();
   updateIF();
   setInterval(updateIF,30000);
@@ -1809,9 +1810,12 @@ function confirmReset(){
     var age=S.userAge;var ht=S.userHeight;
     S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,weight:null,goalWeight:gw,log:[],weightHistory:[],lastReset:new Date().toDateString(),apiKey:ak,pills:JSON.parse(JSON.stringify(DEFAULT_PILLS)),savedFoods:[],userAge:age,userHeight:ht,notifEnabled:S.notifEnabled,jsonbinKey:jk,jsonbinBinId:bid,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current',workoutSets:{}};
     workoutSets={};
-    save();render();closeSettings();
-    showBanner('Data reset. Cloud sync updating...',false);
-    alert('Data reset.');
+    // CRITICAL: Do NOT call save() — it calls pushSync() and would push zeroed state to cloud
+    // Write locally only; cloud keeps old data until next real log
+    try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+    render();closeSettings();
+    showBanner('Daily data reset. Cloud data preserved until next log.',false);
+    alert('Reset complete.');
   }
 }
 
@@ -2326,6 +2330,23 @@ function pullSync(){
     var localPop=isMeaningfullyPopulated(S);
     var remotePop=isMeaningfullyPopulated(remote);
     console.log('[SYNC] local='+localPop+' remote='+remotePop+' remoteTs='+remoteTime+' localTs='+localTime);
+    // DATE GUARD: If remote is from a different day and local is already reset for today,
+    // NEVER overwrite today's daily counters with yesterday's data.
+    // Only merge persistent data (weightHistory, workoutHistory, savedFoods, pills config).
+    var remoteDate=remote.lastReset||'';
+    var localDate=S.lastReset||'';
+    var todayDate=new Date().toDateString();
+    if(remoteDate&&remoteDate!==todayDate&&localDate===todayDate){
+      console.log('[SYNC] PULL SKIPPED DIFFERENT DAY — merging persistent data only. remote='+remoteDate+' local='+localDate);
+      if(remote.weightHistory&&remote.weightHistory.length>(S.weightHistory||[]).length)S.weightHistory=remote.weightHistory;
+      if(remote.workoutHistory&&remote.workoutHistory.length>(S.workoutHistory||[]).length)S.workoutHistory=remote.workoutHistory;
+      if(remote.savedFoods&&remote.savedFoods.length>(S.savedFoods||[]).length)S.savedFoods=remote.savedFoods;
+      if(remote.pills&&remote.pills.length>0&&(!S.pills||S.pills.length===0))S.pills=remote.pills;
+      try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+      syncLock=false;render();
+      if(ss){ss.textContent='synced \u2713';setTimeout(function(){ss.textContent='';},3000);}
+      return;
+    }
     // RULE 1: remote populated, local empty — always pull
     if(remotePop&&!localPop){
       console.log('[SYNC] PULL FORCED — remote has data, local empty');
@@ -2604,10 +2625,8 @@ function importSyncBackup(input){
       // Only restart sync on PRIMARY device — mirror never pushes anyway
       // Use a delay so render() completes before sync starts
       if(S.jsonbinKey&&S.jsonbinBinId){
-        setTimeout(function(){
-          console.log('[IMPORT] Restarting sync after import');
-          initSync();
-        },2000);
+        console.log('[IMPORT] Restarting sync after import');
+        initSync();
       }
 
     }catch(err){
