@@ -577,25 +577,37 @@ function loadHome(){
 
     // Portfolio
     var port=document.getElementById('portfolio-card');
-    callClaude('Search the current stock price for each of these tickers: GOOGL, DKNG, MU, SPY, VOO. Today is '+new Date().toDateString()+'. Return ONLY raw JSON array. No markdown. No backticks. No explanation. No extra text before or after. Example of exact format required: [{"ticker":"GOOGL","price":"185.20","change":"+2.10"},{"ticker":"DKNG","price":"27.50","change":"-0.80"},{"ticker":"MU","price":"98.00","change":"+1.20"},{"ticker":"SPY","price":"535.00","change":"+3.50"},{"ticker":"VOO","price":"492.00","change":"+3.20"}]',function(sr){
-      try{
-        // Strip everything before first [ and after last ]
-        var fi=sr.indexOf('['),li=sr.lastIndexOf(']');
-        if(fi===-1||li===-1)throw new Error('no array');
-        var clean=sr.substring(fi,li+1);
-        var sd=JSON.parse(clean);
-        if(!Array.isArray(sd)||!sd.length)throw new Error('empty');
-        var rows=sd.slice(0,5).map(function(s){
-          var chg=parseFloat((s.change||'0').toString().replace(/[^0-9.\-+]/g,''))||0;
-          var isUp=chg>=0;
-          var muExtra=s.ticker==='MU'?' <span style="font-size:11px;color:var(--t2)">(cost $118)</span>':'';
-          return'<div class="port-row"><div class="port-ticker">'+s.ticker+'</div><div class="port-price">$'+s.price+muExtra+'</div><div class="port-chg '+(isUp?'up':'dn')+'">'+(isUp?'+':'')+s.change+'</div></div>';
-        }).join('');
-        if(port)port.innerHTML='<div class="hcard-label">Portfolio</div>'+rows;
-      }catch(e){
-        // Show raw response for debugging
-        if(port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty" style="font-size:12px;word-break:break-all">Parse error: '+sr.substring(0,200)+'</div>';
-      }
+    var tickers=['GOOGL','DKNG','MU','SPY','VOO'];
+    var results=[];var done=0;
+    tickers.forEach(function(t){
+      fetch('https://query1.finance.yahoo.com/v8/finance/chart/'+t+'?interval=1d&range=1d',{headers:{'User-Agent':'Mozilla/5.0'}})
+        .then(function(r){return r.json();})
+        .then(function(d){
+          try{
+            var meta=d.chart.result[0].meta;
+            var price=meta.regularMarketPrice.toFixed(2);
+            var prev=meta.chartPreviousClose||meta.previousClose||price;
+            var chg=(meta.regularMarketPrice-prev).toFixed(2);
+            var pct=((meta.regularMarketPrice-prev)/prev*100).toFixed(2);
+            results.push({ticker:t,price:price,chg:chg,pct:pct});
+          }catch(e){results.push({ticker:t,price:'--',chg:'0',pct:'0'});}
+          done++;
+          if(done===tickers.length){
+            var ordered=tickers.map(function(tk){return results.find(function(r){return r.ticker===tk;})||{ticker:tk,price:'--',chg:'0',pct:'0'};});
+            var rows=ordered.map(function(s){
+              var chgNum=parseFloat(s.chg)||0;
+              var isUp=chgNum>=0;
+              var muNote=s.ticker==='MU'?'<div style="font-size:11px;color:var(--t2);margin-top:1px">cost $118</div>':'';
+              return'<div class="port-row"><div class="port-ticker">'+s.ticker+'</div><div class="port-price"><div>$'+s.price+'</div>'+muNote+'</div><div class="port-chg '+(isUp?'up':'dn')+'">'+(isUp?'+':'')+s.chg+'<div style="font-size:11px">'+(isUp?'+':'')+s.pct+'%</div></div></div>';
+            }).join('');
+            if(port)port.innerHTML='<div class="hcard-label">Portfolio</div>'+rows;
+          }
+        })
+        .catch(function(){
+          done++;
+          results.push({ticker:t,price:'--',chg:'0',pct:'0'});
+          if(done===tickers.length&&port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty">Market closed or data unavailable</div>';
+        });
     });
   });
 }
