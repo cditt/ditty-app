@@ -563,11 +563,10 @@ function loadHome(){
     if(emailData&&emailData.messages&&emailData.messages.length){
       var priority=emailData.messages.filter(function(m){
         var hh=(m.payload&&m.payload.headers)||[];
-        var from='';hh.forEach(function(h){if(h.name==='From')from=h.value.toLowerCase();});
-        var hh2=(m.payload&&m.payload.headers)||[];var sub2='';
-        hh2.forEach(function(h){if(h.name==='Subject')sub2=h.value.toLowerCase();});
-        return PRIORITY_FROM.some(function(s){return from.indexOf(s)>-1;})||PRIORITY_SUBJECT.some(function(s){return sub2.indexOf(s)>-1;});
-      }).slice(0,3);
+        var from='',sub='';
+        hh.forEach(function(h){if(h.name==='From')from=h.value.toLowerCase();if(h.name==='Subject')sub=h.value.toLowerCase();});
+        return PRIORITY_FROM.some(function(s){return from.indexOf(s)>-1;})||PRIORITY_SUBJECT.some(function(s){return sub.indexOf(s)>-1;});
+      }).slice(0,5);
       var phtml=priority.map(function(m){
         var hh=(m.payload&&m.payload.headers)||[];var sub='',from='';
         hh.forEach(function(h){if(h.name==='Subject')sub=h.value;if(h.name==='From')from=h.value.replace(/<.*>/,'').trim();});
@@ -580,26 +579,26 @@ function loadHome(){
 
     // Portfolio
     var port=document.getElementById('portfolio-card');
-    fetch(PROXY+'/stocks?symbols=GOOGL,DKNG,MU,SPY,VOO')
-      .then(function(r){return r.json();})
-      .then(function(d){
-        if(!d.stocks||!d.stocks.length){
-          if(port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty">'+(d.error||'Market data unavailable')+'</div>';
-          return;
-        }
-        var rows=d.stocks.map(function(s){
-          var isUp=(s.change||0)>=0;
-          var muNote=s.ticker==='MU'?'<div style="font-size:11px;color:var(--t2);margin-top:1px">cost $118 &nbsp;'+(s.price&&s.price>118?'<span style="color:var(--ok)">+$'+(s.price-118).toFixed(2)+'</span>':'<span style="color:var(--danger)">-$'+(118-s.price).toFixed(2)+'</span>')+'</div>':'';
-          var priceStr=s.price?'$'+s.price.toFixed(2):'--';
-          var chgStr=s.change!==null?(isUp?'+':'')+s.change.toFixed(2):'--';
-          var pctStr=s.percent!==null?(isUp?'+':'')+s.percent.toFixed(2)+'%':'';
-          return'<div class="port-row"><div class="port-ticker">'+s.ticker+'</div><div class="port-price"><div>'+priceStr+'</div>'+muNote+'</div><div class="port-chg '+(isUp?'up':'dn')+'">'+chgStr+'<div style="font-size:11px">'+pctStr+'</div></div></div>';
+    if(port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty">Loading stocks...</div>';
+    callClaude('Search current stock prices for these tickers: GOOGL, DKNG, LMT, MU, IHAK, SCZ, SPY, VO, VOO. Today is '+new Date().toDateString()+'. Return ONLY a raw JSON array, no markdown, no backticks, no explanation. Exact format: [{"ticker":"GOOGL","price":"185.20","change":"+2.10","pct":"+1.15%"},{"ticker":"DKNG","price":"27.50","change":"-0.80","pct":"-2.83%"}]',function(sr){
+      try{
+        var fi=sr.indexOf('['),li=sr.lastIndexOf(']');
+        if(fi===-1||li===-1)throw new Error('no array');
+        var sd=JSON.parse(sr.substring(fi,li+1));
+        if(!Array.isArray(sd)||!sd.length)throw new Error('empty');
+        var MU_COST=118;
+        var rows=sd.map(function(s){
+          var chg=parseFloat((s.change||'0').toString().replace(/[^0-9.\-]/g,''))*((s.change||'').toString().indexOf('-')>-1?-1:1);
+          var isUp=chg>=0;
+          var price=parseFloat(s.price)||0;
+          var muNote=s.ticker==='MU'?'<div style="font-size:11px;color:var(--t2)">cost $'+MU_COST+' <span style="color:'+(price>MU_COST?'var(--ok)':'var(--danger)')+'"> '+(price>MU_COST?'+':'')+' $'+(price-MU_COST).toFixed(2)+'</span></div>':'';
+          return'<div class="port-row"><div class="port-ticker">'+s.ticker+'</div><div class="port-price"><div>$'+s.price+'</div>'+muNote+'</div><div class="port-chg '+(isUp?'up':'dn')+'">'+(isUp&&s.change.indexOf('+')===-1?'+':'')+s.change+'<div style="font-size:11px">'+(s.pct||'')+'</div></div></div>';
         }).join('');
         if(port)port.innerHTML='<div class="hcard-label">Portfolio</div>'+rows;
-      })
-      .catch(function(){
-        if(port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty">Market data unavailable</div>';
-      });
+      }catch(e){
+        if(port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty">Stock data unavailable</div>';
+      }
+    });
   });
 }
 
