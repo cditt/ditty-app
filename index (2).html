@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ditty PA">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f0a500">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="favicon.ico">
+<title>Ditty PA</title>
+<style>
+:root {
+  --bg:#0d0d0d; --s1:#161616; --s2:#1f1f1f; --s3:#282828;
+  --border:#2a2a2a; --accent:#f0a500; --danger:#e03c3c;
+  --ok:#27ae60; --text:#f0f0f0; --t2:#888; --t3:#444;
+  --r:14px; --rl:20px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --sat: env(safe-area-inset-top,0px);
+  --sab: env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;-webkit-font-smoothing:antialiased;}
+button{font-family:var(--font);cursor:pointer;border:none;background:none;}
+input,textarea{font-family:var(--font);}
+
+/* APP SHELL */
+#app{display:flex;flex-direction:column;height:100dvh;height:100vh;padding-top:var(--sat);}
+.top-bar{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;background:var(--s1);border-bottom:1px solid var(--border);}
+.top-logo{display:flex;align-items:center;gap:10px;}
+.top-wordmark{font-size:18px;font-weight:900;letter-spacing:2px;color:var(--text);text-transform:uppercase;}
+.top-right{display:flex;align-items:center;gap:8px;}
+.gpill{height:30px;padding:0 12px;border-radius:15px;font-size:11px;font-weight:800;letter-spacing:.5px;display:flex;align-items:center;gap:5px;}
+.gpill-on{background:#122010;color:var(--ok);}
+.gpill-off{background:#2a1010;color:var(--danger);}
+.top-icon{width:38px;height:38px;border-radius:19px;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;}
+
+/* SCREENS */
+.screens{flex:1;overflow:hidden;position:relative;}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:0 0 90px;display:none;}
+.screen.active{display:block;}
+
+/* BOTTOM NAV */
+.bnav{flex-shrink:0;display:flex;background:var(--s1);border-top:2px solid #333;padding-bottom:var(--sab);min-height:76px;}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px 0 6px;background:none;border:none;}
+.bnav-btn:active{opacity:.6;}
+.bnav-ico{width:28px;height:28px;}
+.bnav-lbl{font-size:12px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;}
+.bnav-btn.on .bnav-lbl{color:var(--accent);}
+.bnav-btn.on .ni{stroke:var(--accent);}
+
+/* SETUP */
+#setup{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;z-index:999;overflow-y:auto;}
+.su-logo{margin-bottom:24px;}
+.su-name{font-size:32px;font-weight:900;letter-spacing:4px;text-transform:uppercase;margin-bottom:6px;text-align:center;}
+.su-tag{font-size:12px;letter-spacing:3px;color:var(--t2);text-transform:uppercase;margin-bottom:48px;text-align:center;}
+.su-field{width:100%;margin-bottom:16px;}
+.su-lbl{font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:7px;}
+.su-inp{width:100%;background:var(--s2);border:1.5px solid var(--border);border-radius:var(--r);padding:16px 18px;color:var(--text);font-size:17px;outline:none;}
+.su-inp:focus{border-color:var(--accent);}
+.su-btn{width:100%;height:56px;border-radius:var(--r);font-size:16px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:10px;}
+.su-btn:active{opacity:.8;transform:scale(.98);}
+.btn-acc{background:var(--accent);color:#000;}
+.btn-goo{background:#fff;color:#111;text-transform:none;letter-spacing:0;font-size:16px;}
+
+/* HOME SCREEN */
+.home-scroll{padding:24px 16px 0;}
+.greeting{font-size:14px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}
+.greeting-name{font-size:36px;font-weight:900;letter-spacing:-.5px;margin-bottom:6px;line-height:1.1;}
+.greeting-date{font-size:16px;color:var(--t2);margin-bottom:24px;font-weight:500;}
+
+/* WEATHER HERO */
+.weather-hero{background:linear-gradient(135deg,#1e1600 0%,#2e2200 60%,#1a1400 100%);border:1px solid #4a3800;border-radius:var(--rl);padding:28px 22px 24px;margin-bottom:16px;position:relative;overflow:hidden;}
+.weather-hero::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(240,165,0,.06);}
+.wh-loc{font-size:13px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.wh-temp{font-size:72px;font-weight:900;color:var(--text);line-height:1;margin-bottom:4px;letter-spacing:-3px;}
+.wh-cond{font-size:18px;color:#bbb;margin-bottom:20px;font-weight:500;}
+.wh-row{display:flex;gap:0;border-top:1px solid rgba(240,165,0,.15);padding-top:16px;}
+.wh-day{text-align:center;flex:1;}
+.wh-day-name{font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.wh-day-temp{font-size:17px;font-weight:800;color:var(--text);}
+.wh-loading{color:var(--t2);font-size:16px;padding:16px 0;}
+
+/* HOME CARDS */
+.hcard{background:var(--s1);border:1px solid #2a2a2a;border-radius:var(--rl);padding:20px 20px;margin-bottom:14px;}
+.hcard-label{font-size:12px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;}
+.hcard-empty{font-size:16px;color:var(--t2);}
+
+/* NEXT EVENT */
+.event-time{font-size:13px;font-weight:800;color:var(--accent);margin-bottom:6px;letter-spacing:.5px;}
+.event-title{font-size:20px;font-weight:800;color:var(--text);line-height:1.3;}
+.event-more{font-size:14px;color:var(--t2);margin-top:8px;}
+
+/* PRIORITIES */
+.pri-item{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);}
+.pri-item:last-child{border-bottom:none;}
+.pri-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.pri-txt{font-size:18px;color:var(--text);font-weight:500;}
+
+/* EMAIL BADGE */
+.email-row{display:flex;align-items:center;justify-content:space-between;}
+.email-count{font-size:44px;font-weight:900;color:var(--accent);line-height:1;}
+.email-lbl{font-size:15px;color:var(--t2);margin-top:2px;}
+.email-priority{margin-top:12px;}
+.ep-item{font-size:16px;color:var(--text);padding:9px 0;border-bottom:1px solid var(--border);}
+.ep-item:last-child{border-bottom:none;}
+.ep-from{font-size:12px;color:var(--accent);font-weight:700;margin-bottom:1px;}
+
+/* PORTFOLIO STRIP */
+.port-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);}
+.port-row:last-child{border-bottom:none;}
+.port-ticker{font-size:16px;font-weight:800;color:var(--accent);width:60px;}
+.port-price{font-size:16px;color:var(--text);flex:1;text-align:center;}
+.port-chg{font-size:15px;font-weight:800;text-align:right;min-width:64px;}
+.up{color:var(--ok);}
+.dn{color:var(--danger);}
+
+/* TASKS SCREEN */
+.screen-header{padding:20px 18px 16px;background:var(--s1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.sh-title{font-size:26px;font-weight:900;letter-spacing:-.5px;}
+.sh-sub{font-size:14px;color:var(--t2);margin-top:3px;}
+.task-section{padding:16px 16px 0;}
+.ts-label{font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px;}
+.task-item{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:var(--s1);border-radius:var(--r);margin-bottom:10px;border:1px solid var(--border);}
+.task-chk{width:26px;height:26px;min-width:26px;border:2px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-top:1px;transition:all .15s;}
+.task-chk.on{background:var(--ok);border-color:var(--ok);}
+.task-chk.on::after{content:'✓';color:#fff;font-size:14px;font-weight:800;}
+.task-body{flex:1;}
+.task-title{font-size:17px;color:var(--text);line-height:1.4;}
+.task-title.done{color:var(--t3);text-decoration:line-through;}
+.task-late{font-size:12px;color:var(--danger);font-weight:700;margin-top:3px;}
+.add-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 32px);margin:16px 16px;height:52px;background:var(--s2);border:1.5px dashed var(--border);border-radius:var(--r);font-size:15px;font-weight:700;color:var(--t2);}
+.add-btn:active{background:var(--s3);}
+
+/* CALENDAR SCREEN */
+.cal-day{padding:16px 16px 0;}
+.cal-day-label{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
+.cal-event{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;}
+.cal-time{font-size:12px;font-weight:700;color:var(--t2);margin-bottom:4px;}
+.cal-title{font-size:17px;font-weight:700;color:var(--text);}
+.cal-empty{padding:20px 16px;font-size:15px;color:var(--t2);text-align:center;}
+
+/* MAIL SCREEN */
+.mail-item{padding:16px 18px;border-bottom:1px solid var(--border);background:var(--s1);margin:0 16px 10px;border-radius:var(--r);border:1px solid var(--border);}
+.mail-from{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.mail-subj{font-size:16px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:4px;}
+.mail-snip{font-size:14px;color:var(--t2);line-height:1.5;}
+.mail-urgent{background:#2a1010;border-color:#3a1515;}
+.mail-urgent .mail-from{color:var(--danger);}
+.mail-section-lbl{font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:1.2px;padding:16px 18px 8px;}
+
+/* SETTINGS */
+.sgroup{background:var(--s1);border:1px solid var(--border);border-radius:var(--rl);margin:16px;overflow:hidden;}
+.sgroup-lbl{font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:1.2px;padding:14px 18px 6px;}
+.srow{display:flex;align-items:center;padding:14px 18px;border-top:1px solid var(--border);gap:14px;}
+.srow:first-of-type{border-top:none;}
+.srow label{font-size:17px;color:var(--text);flex:1;}
+.sinp{background:var(--s2);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:15px;width:150px;outline:none;}
+.sinp:focus{border-color:var(--accent);}
+.sbtn{width:calc(100% - 32px);margin:0 16px 12px;height:52px;border-radius:var(--r);font-size:15px;font-weight:800;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:10px;}
+.sbtn:active{opacity:.8;}
+.sbtn-acc{background:var(--accent);color:#000;}
+.sbtn-goo{background:#fff;color:#111;font-size:15px;font-weight:700;letter-spacing:0;}
+.sbtn-danger{background:transparent;border:1.5px solid var(--danger);color:var(--danger);}
+
+/* LOADING STATES */
+.spin-wrap{display:flex;flex-direction:column;align-items:center;padding:48px 24px;gap:16px;}
+.spinner{width:36px;height:36px;border:3px solid var(--s3);border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin-txt{font-size:15px;color:var(--t2);}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:500;align-items:flex-end;}
+.modal-bg.open{display:flex;}
+.msheet{background:var(--s1);border-radius:24px 24px 0 0;padding:20px 20px calc(24px + var(--sab));width:100%;}
+.mhandle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;}
+.mtitle{font-size:20px;font-weight:900;margin-bottom:16px;}
+.mta{width:100%;background:var(--s2);border:1.5px solid var(--border);border-radius:var(--r);padding:14px 16px;color:var(--text);font-size:17px;height:90px;outline:none;resize:none;line-height:1.5;margin-bottom:14px;}
+.mta:focus{border-color:var(--accent);}
+.macts{display:flex;gap:10px;}
+.macts button{flex:1;height:52px;border-radius:var(--r);font-size:15px;font-weight:800;}
+.mbtn-cancel{background:var(--s2);border:1.5px solid var(--border);color:var(--t2);}
+.mbtn-go{background:var(--accent);color:#000;}
+
+/* TOAST */
+.toast{position:fixed;bottom:calc(82px + var(--sab));left:16px;right:16px;background:#222;border:1px solid #333;border-radius:14px;padding:14px 20px;font-size:16px;font-weight:600;text-align:center;z-index:600;pointer-events:none;opacity:0;transition:opacity .2s;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="su-logo">
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+      <rect width="80" height="80" rx="18" fill="#161616"/>
+      <rect x="16" y="16" width="10" height="48" rx="4" fill="#f0a500"/>
+      <path d="M26 20 Q62 20 62 40 Q62 60 26 60" stroke="#f0a500" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <polygon points="46,25 34,40 43,40 32,55 52,38 41,38" fill="#ffe088"/>
+    </svg>
+  </div>
+  <div class="su-name">Ditty PA</div>
+  <div class="su-tag">Personal Command Center</div>
+  <div class="su-field">
+    <div class="su-lbl">Claude API Key</div>
+    <input class="su-inp" type="password" id="su-key" placeholder="sk-ant-api03-..." autocomplete="off">
+  </div>
+  <div class="su-field">
+    <div class="su-lbl">ZIP Code</div>
+    <input class="su-inp" type="text" id="su-zip" placeholder="46151" maxlength="10">
+  </div>
+  <button class="su-btn btn-acc" onclick="doSetup()">Get Started</button>
+  <button class="su-btn btn-goo" onclick="gConnect()">
+    <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+    Connect Google Account
+  </button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="top-bar">
+    <div class="top-logo">
+      <svg width="28" height="28" viewBox="0 0 80 80" fill="none">
+        <rect width="80" height="80" rx="18" fill="#161616"/>
+        <rect x="16" y="16" width="10" height="48" rx="4" fill="#f0a500"/>
+        <path d="M26 20 Q62 20 62 40 Q62 60 26 60" stroke="#f0a500" stroke-width="9" fill="none" stroke-linecap="round"/>
+        <polygon points="46,25 34,40 43,40 32,55 52,38 41,38" fill="#ffe088"/>
+      </svg>
+      <span class="top-wordmark">Ditty PA</span>
+    </div>
+    <div class="top-right">
+      <button class="gpill gpill-off" id="gpill" onclick="gConnect()">● Google</button>
+      <div class="top-icon" onclick="openRemind()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="screens">
+    <!-- HOME -->
+    <div class="screen active" id="scr-home">
+      <div class="home-scroll">
+        <div class="greeting" id="h-greeting">Good Morning</div>
+        <div class="greeting-name">Chris</div>
+        <div class="greeting-date" id="h-date">Loading...</div>
+
+        <div class="weather-hero" id="weather-card">
+          <div class="wh-loading">Loading weather...</div>
+        </div>
+
+        <div class="hcard" id="next-event-card">
+          <div class="hcard-label">Next Event</div>
+          <div class="hcard-empty">Loading calendar...</div>
+        </div>
+
+        <div class="hcard" id="priorities-card">
+          <div class="hcard-label">Today's Priorities</div>
+          <div class="hcard-empty">Loading...</div>
+        </div>
+
+        <div class="hcard" id="email-card">
+          <div class="hcard-label">Email</div>
+          <div class="hcard-empty">Loading...</div>
+        </div>
+
+        <div class="hcard" id="portfolio-card">
+          <div class="hcard-label">Portfolio</div>
+          <div class="hcard-empty">Loading stocks...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TASKS -->
+    <div class="screen" id="scr-tasks">
+      <div class="screen-header">
+        <div class="sh-title">Tasks</div>
+        <div class="sh-sub">Farm checks + personal</div>
+      </div>
+      <div class="task-section">
+        <div class="ts-label">Farm Checks</div>
+        <div id="farm-tasks"></div>
+      </div>
+      <div class="task-section" style="margin-top:8px">
+        <div class="ts-label">Personal</div>
+        <div id="personal-tasks"></div>
+      </div>
+      <button class="add-btn" onclick="openRemind()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Task or Reminder
+      </button>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="screen" id="scr-cal">
+      <div class="screen-header">
+        <div class="sh-title">Calendar</div>
+        <div class="sh-sub" id="cal-sub">Next 48 hours</div>
+      </div>
+      <div id="cal-content">
+        <div class="spin-wrap"><div class="spinner"></div><div class="spin-txt">Fetching calendar...</div></div>
+      </div>
+    </div>
+
+    <!-- MAIL -->
+    <div class="screen" id="scr-mail">
+      <div class="screen-header">
+        <div class="sh-title">Mail</div>
+        <div class="sh-sub">Priority senders only</div>
+      </div>
+      <div id="mail-content">
+        <div class="spin-wrap"><div class="spinner"></div><div class="spin-txt">Scanning inbox...</div></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="screen" id="scr-settings">
+      <div class="screen-header">
+        <div class="sh-title">Settings</div>
+      </div>
+      <div class="sgroup">
+        <div class="sgroup-lbl">API</div>
+        <div class="srow"><label>Claude API Key</label><input class="sinp" type="password" id="s-key" placeholder="sk-ant-..."></div>
+      </div>
+      <div class="sgroup">
+        <div class="sgroup-lbl">Location</div>
+        <div class="srow"><label>ZIP Code</label><input class="sinp" type="text" id="s-zip" placeholder="46151"></div>
+      </div>
+      <div class="sgroup">
+        <div class="sgroup-lbl">Google Account</div>
+        <div class="srow"><label>Status</label><span id="s-gstat" style="font-size:15px;color:#888">Not connected</span></div>
+      </div>
+      <button class="sbtn sbtn-goo" onclick="gConnect()" style="margin-top:4px">
+        <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+        Reconnect Google
+      </button>
+      <button class="sbtn sbtn-acc" onclick="saveSettings()">Save Settings</button>
+      <button class="sbtn sbtn-danger" onclick="doSignOut()" style="margin-top:4px">Sign Out & Reset</button>
+      <div style="text-align:center;color:var(--t3);font-size:12px;letter-spacing:1px;margin:24px 0">DITTY PA · V3.0</div>
+    </div>
+  </div>
+
+  <div class="bnav">
+    <button class="bnav-btn on" id="nb-home" onclick="nav('home')">
+      <svg class="bnav-ico ni" viewBox="0 0 24 24" fill="none" stroke="#f0a500" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="bnav-lbl" style="color:var(--accent)">Home</span>
+    </button>
+    <button class="bnav-btn" id="nb-tasks" onclick="nav('tasks')">
+      <svg class="bnav-ico ni" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2" stroke-linecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span class="bnav-lbl">Tasks</span>
+    </button>
+    <button class="bnav-btn" id="nb-cal" onclick="nav('cal')">
+      <svg class="bnav-ico ni" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span class="bnav-lbl">Calendar</span>
+    </button>
+    <button class="bnav-btn" id="nb-mail" onclick="nav('mail')">
+      <svg class="bnav-ico ni" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      <span class="bnav-lbl">Mail</span>
+    </button>
+    <button class="bnav-btn" id="nb-settings" onclick="nav('settings')">
+      <svg class="bnav-ico ni" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="bnav-lbl">Settings</span>
+    </button>
+  </div>
+</div>
+
+<!-- REMIND MODAL -->
+<div class="modal-bg" id="rmodal">
+  <div class="msheet">
+    <div class="mhandle"></div>
+    <div class="mtitle">Set Reminder</div>
+    <textarea class="mta" id="rtxt" placeholder="Pick up chicken feed at 4:30 today..."></textarea>
+    <div class="macts">
+      <button class="mbtn-cancel" onclick="closeRemind()">Cancel</button>
+      <button class="mbtn-go" onclick="submitRemind()">Set It</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var GID='397827765559-qop8itod6qnfdtf6si2pl1481a2itael.apps.googleusercontent.com';
+var GSCOPE='https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.readonly';
+var PROXY='https://ditty-pa-proxy.hddittemore.workers.dev';
+var S={},T={},GT=null,CUR='home';
+var FARM=['Chicken water','Chicken food','Check bees','Garden check'];
+var PRIORITY_SENDERS=['elks','edward jones','ducks unlimited','tami','iu health','bill','invoice','statement','duke energy'];
+
+function ls(k,v){if(v!==undefined)localStorage.setItem(k,typeof v==='string'?v:JSON.stringify(v));else{try{var r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return null;}}}
+
+function boot(){
+  S=ls('dpa3_s')||{};T=ls('dpa3_t')||{};GT=localStorage.getItem('dpa3_g')||null;
+  checkOAuth();
+  if(!S.apiKey){document.getElementById('setup').style.display='flex';document.getElementById('app').style.display='none';}
+  else{document.getElementById('setup').style.display='none';document.getElementById('app').style.display='flex';bootApp();}
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+
+function checkOAuth(){
+  var h=window.location.hash;
+  if(h&&h.indexOf('access_token=')>-1){
+    var p={};h.substring(1).split('&').forEach(function(s){var kv=s.split('=');p[decodeURIComponent(kv[0])]=decodeURIComponent(kv[1]||'');});
+    if(p.access_token){GT=p.access_token;ls('dpa3_g',GT);window.history.replaceState({},'',window.location.pathname);toast('Google connected');}
+  }
+}
+
+function bootApp(){
+  updateG();setGreeting();renderFarmTasks();renderPersonalTasks();
+  loadHome();loadCal();loadMail();
+}
+
+function updateG(){
+  var p=document.getElementById('gpill'),s=document.getElementById('s-gstat');
+  if(GT){if(p){p.textContent='● Google';p.className='gpill gpill-on';}if(s)s.textContent='Connected';}
+  else{if(p){p.textContent='● Connect';p.className='gpill gpill-off';}if(s)s.textContent='Not connected';}
+}
+
+function setGreeting(){
+  var h=new Date().getHours();
+  var g=h<12?'Good Morning':h<17?'Good Afternoon':'Good Evening';
+  var el=document.getElementById('h-greeting');if(el)el.textContent=g;
+  var n=new Date();
+  var days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var mons=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var de=document.getElementById('h-date');
+  if(de)de.textContent=days[n.getDay()]+', '+mons[n.getMonth()]+' '+n.getDate()+', '+n.getFullYear();
+  var cs=document.getElementById('cal-sub');
+  if(cs)cs.textContent=days[n.getDay()]+' + next 48 hrs';
+}
+
+function nav(scr){
+  CUR=scr;
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.bnav-btn').forEach(function(b){
+    b.classList.remove('on');
+    b.querySelector('.bnav-lbl').style.color='';
+    b.querySelector('.ni').setAttribute('stroke','#444');
+  });
+  var s=document.getElementById('scr-'+scr);if(s)s.classList.add('active');
+  var b=document.getElementById('nb-'+scr);
+  if(b){b.classList.add('on');b.querySelector('.bnav-lbl').style.color='var(--accent)';b.querySelector('.ni').setAttribute('stroke','#f0a500');}
+  if(scr==='settings'){
+    document.getElementById('s-key').value=S.apiKey||'';
+    document.getElementById('s-zip').value=S.zip||'46151';
+    updateG();
+  }
+}
+
+function doSetup(){
+  var k=document.getElementById('su-key').value.trim(),z=document.getElementById('su-zip').value.trim();
+  if(!k||k.length<20){alert('Enter a valid Claude API key');return;}
+  S.apiKey=k;S.zip=z||'46151';ls('dpa3_s',S);
+  document.getElementById('setup').style.display='none';
+  document.getElementById('app').style.display='flex';
+  bootApp();
+}
+
+function gConnect(){
+  window.location.href='https://accounts.google.com/o/oauth2/v2/auth?client_id='+GID+'&redirect_uri='+encodeURIComponent('https://cditt.github.io/ditty-pa/')+'&response_type=token&scope='+encodeURIComponent(GSCOPE)+'&prompt=consent';
+}
+
+function saveSettings(){
+  var k=document.getElementById('s-key').value.trim(),z=document.getElementById('s-zip').value.trim();
+  if(k)S.apiKey=k;if(z)S.zip=z;ls('dpa3_s',S);toast('Saved');
+}
+
+function doSignOut(){if(!confirm('Reset everything?'))return;localStorage.clear();location.reload();}
+
+function openRemind(){document.getElementById('rmodal').classList.add('open');setTimeout(function(){document.getElementById('rtxt').focus();},100);}
+function closeRemind(){document.getElementById('rmodal').classList.remove('open');document.getElementById('rtxt').value='';}
+function submitRemind(){
+  var txt=document.getElementById('rtxt').value.trim();if(!txt)return;closeRemind();
+  if(!GT){toast('Connect Google to set calendar reminders');return;}
+  var now=new Date();
+  callClaude('Parse this reminder and return ONLY JSON: {title,dateTime(ISO8601 based on today '+now.toISOString()+')}. No markdown. Reminder: "'+txt+'"',function(r){
+    try{
+      var d=JSON.parse(r.replace(/```json|```/g,'').trim());
+      var ev={summary:d.title,start:{dateTime:d.dateTime,timeZone:'America/Indiana/Indianapolis'},end:{dateTime:new Date(new Date(d.dateTime).getTime()+1800000).toISOString(),timeZone:'America/Indiana/Indianapolis'},reminders:{useDefault:false,overrides:[{method:'popup',minutes:0}]}};
+      fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{method:'POST',headers:{Authorization:'Bearer '+GT,'Content-Type':'application/json'},body:JSON.stringify(ev)}).then(function(res){toast(res.ok?'Reminder added to calendar':'Failed');});
+    }catch(e){
+      // Add as personal task instead
+      var pt=ls('dpa3_pt')||[];pt.push({text:txt,done:false,ts:Date.now()});ls('dpa3_pt',pt);
+      renderPersonalTasks();toast('Added to tasks');
+    }
+  });
+}
+
+function toast(msg){
+  var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2500);
+}
+
+function callClaude(prompt,cb){
+  fetch(PROXY,{method:'POST',headers:{'Content-Type':'application/json','x-api-key':S.apiKey,'anthropic-version':'2023-06-01','anthropic-beta':'web-search-2025-03-05'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,tools:[{type:'web_search_20250305',name:'web_search',max_uses:3}],messages:[{role:'user',content:prompt}]})})
+    .then(function(r){return r.json();})
+    .then(function(d){var t='';if(d.content)d.content.forEach(function(c){if(c.type==='text')t+=c.text;});cb(t);})
+    .catch(function(e){cb('Error: '+e.message);});
+}
+
+function fetchCal(){
+  if(!GT)return Promise.resolve(null);
+  var now=new Date(),fut=new Date(now.getTime()+172800000);
+  return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin='+encodeURIComponent(now.toISOString())+'&timeMax='+encodeURIComponent(fut.toISOString())+'&singleEvents=true&orderBy=startTime&maxResults=20',{headers:{Authorization:'Bearer '+GT}})
+    .then(function(r){return r.json();})
+    .catch(function(){return null;});
+}
+
+function fetchEmail(){
+  if(!GT)return Promise.resolve(null);
+  return fetch('https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=20&q=is:unread',{headers:{Authorization:'Bearer '+GT}})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d.messages||!d.messages.length)return {messages:[],count:0};
+      return Promise.all(d.messages.slice(0,15).map(function(m){
+        return fetch('https://www.googleapis.com/gmail/v1/users/me/messages/'+m.id+'?format=metadata&metadataHeaders=Subject&metadataHeaders=From',{headers:{Authorization:'Bearer '+GT}}).then(function(r){return r.json();});
+      })).then(function(msgs){return {messages:msgs,count:d.resultSizeEstimate||d.messages.length};});
+    }).catch(function(){return null;});
+}
+
+function loadHome(){
+  var zip=S.zip||'46151';
+  // Weather
+  callClaude('Search current weather for ZIP '+zip+' and return ONLY JSON: {temp,condition,high,low,forecast:[{day,high,low,cond}x4]}. No markdown.',function(r){
+    try{
+      var d=JSON.parse(r.replace(/```json|```/g,'').trim());
+      var wc=document.getElementById('weather-card');
+      if(!wc)return;
+      var fhtml=d.forecast?d.forecast.slice(0,4).map(function(f){return'<div class="wh-day"><div class="wh-day-name">'+f.day+'</div><div class="wh-day-temp">'+f.high+'</div></div>';}).join(''):'';
+      wc.innerHTML='<div class="wh-loc">Martinsville, IN '+zip+'</div><div class="wh-temp">'+(d.temp||'--')+'°</div><div class="wh-cond">'+(d.condition||'')+'</div><div class="wh-row">'+fhtml+'</div>';
+    }catch(e){
+      var wc2=document.getElementById('weather-card');if(wc2)wc2.innerHTML='<div class="wh-loading">Weather unavailable</div>';
+    }
+  });
+
+  // Calendar + Email in parallel
+  Promise.all([fetchCal(),fetchEmail()]).then(function(res){
+    var calData=res[0],emailData=res[1];
+
+    // Next event
+    var ec=document.getElementById('next-event-card');
+    if(calData&&calData.items&&calData.items.length){
+      var ev=calData.items[0];
+      var st=ev.start.dateTime||ev.start.date;
+      var dt=new Date(st);
+      var timeStr=ev.start.dateTime?dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'All day';
+      var more=calData.items.length>1?' + '+(calData.items.length-1)+' more event'+(calData.items.length>2?'s':''):'';
+      if(ec)ec.innerHTML='<div class="hcard-label">Next Event</div><div class="event-time">'+timeStr+'</div><div class="event-title">'+ev.summary+'</div>'+(more?'<div class="event-more">'+more+'</div>':'');
+    }else{
+      if(ec)ec.innerHTML='<div class="hcard-label">Next Event</div><div class="hcard-empty">Calendar clear today</div>';
+    }
+
+    // Priorities (top 3 tasks)
+    var pc=document.getElementById('priorities-card');
+    var pts=[].concat(FARM).slice(0,3);
+    if(pc)pc.innerHTML='<div class="hcard-label">Today\'s Priorities</div>'+pts.map(function(p){return'<div class="pri-item"><div class="pri-dot"></div><div class="pri-txt">'+p+'</div></div>';}).join('');
+
+    // Email
+    var emlc=document.getElementById('email-card');
+    if(emailData&&emailData.messages&&emailData.messages.length){
+      var priority=emailData.messages.filter(function(m){
+        var hh=(m.payload&&m.payload.headers)||[];
+        var from='';hh.forEach(function(h){if(h.name==='From')from=h.value.toLowerCase();});
+        return PRIORITY_SENDERS.some(function(s){return from.indexOf(s)>-1;});
+      }).slice(0,3);
+      var phtml=priority.map(function(m){
+        var hh=(m.payload&&m.payload.headers)||[];var sub='',from='';
+        hh.forEach(function(h){if(h.name==='Subject')sub=h.value;if(h.name==='From')from=h.value.replace(/<.*>/,'').trim();});
+        return'<div class="ep-item"><div class="ep-from">'+from+'</div>'+sub+'</div>';
+      }).join('');
+      if(emlc)emlc.innerHTML='<div class="hcard-label">Email</div><div class="email-row"><div><div class="email-count">'+emailData.count+'</div><div class="email-lbl">unread</div></div></div>'+(phtml?'<div class="email-priority">'+phtml+'</div>':'');
+    }else{
+      if(emlc)emlc.innerHTML='<div class="hcard-label">Email</div><div class="hcard-empty">'+(GT?'Inbox clear':'Connect Google to see email')+'</div>';
+    }
+
+    // Portfolio
+    var port=document.getElementById('portfolio-card');
+    var tickers=['GOOGL','DKNG','MU','SPY','VOO'];
+    callClaude('Search current stock prices for GOOGL, DKNG, MU, SPY, VOO. For each return the current price and todays change. Respond with ONLY a JSON array, no markdown, no explanation, like this exact format: [{"ticker":"GOOGL","price":"180.50","change":"+1.23"},{"ticker":"DKNG","price":"26.50","change":"-0.45"}]',function(sr){
+      try{
+        var sd=JSON.parse(sr.replace(/```json|```/g,'').trim());
+        if(!Array.isArray(sd))throw new Error();
+        var rows=sd.slice(0,5).map(function(s){
+          var chg=parseFloat(s.change)||0;
+          return'<div class="port-row"><div class="port-ticker">'+s.ticker+'</div><div class="port-price">$'+s.price+'</div><div class="port-chg '+(chg>=0?'up':'dn')+'">'+(chg>=0?'+':'')+s.change+'</div></div>';
+        }).join('');
+        if(port)port.innerHTML='<div class="hcard-label">Portfolio</div>'+rows;
+      }catch(e){if(port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty">Stock data unavailable</div>';}
+    });
+  });
+}
+
+function loadCal(){
+  fetchCal().then(function(data){
+    var el=document.getElementById('cal-content');if(!el)return;
+    if(!GT){el.innerHTML='<div class="cal-empty">Connect Google to see your calendar</div>';return;}
+    if(!data||!data.items||!data.items.length){el.innerHTML='<div class="cal-empty">No events in the next 48 hours</div>';return;}
+    var now=new Date();
+    var todayEnd=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59);
+    var today=[],tmrw=[];
+    data.items.forEach(function(e){
+      var st=new Date(e.start.dateTime||e.start.date);
+      if(st<=todayEnd)today.push(e);else tmrw.push(e);
+    });
+    function renderDay(evts,label){
+      if(!evts.length)return'';
+      return'<div class="cal-day"><div class="cal-day-label">'+label+'</div>'+evts.map(function(e){
+        var st=e.start.dateTime||e.start.date;var dt=new Date(st);
+        var t=e.start.dateTime?dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'All day';
+        return'<div class="cal-event"><div class="cal-time">'+t+'</div><div class="cal-title">'+e.summary+'</div></div>';
+      }).join('')+'</div>';
+    }
+    var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    var tomorrow=new Date(now.getTime()+86400000);
+    el.innerHTML=renderDay(today,'Today')+renderDay(tmrw,days[tomorrow.getDay()]+' · Tomorrow');
+  });
+}
+
+function loadMail(){
+  fetchEmail().then(function(data){
+    var el=document.getElementById('mail-content');if(!el)return;
+    if(!GT){el.innerHTML='<div class="cal-empty">Connect Google to see your email</div>';return;}
+    if(!data||!data.messages||!data.messages.length){el.innerHTML='<div class="cal-empty">Inbox clear</div>';return;}
+    var priority=[],other=[];
+    data.messages.forEach(function(m){
+      var hh=(m.payload&&m.payload.headers)||[];var from='',sub='';
+      hh.forEach(function(h){if(h.name==='From')from=h.value;if(h.name==='Subject')sub=h.value;});
+      var isPri=PRIORITY_SENDERS.some(function(s){return from.toLowerCase().indexOf(s)>-1;});
+      if(isPri)priority.push({from:from,sub:sub});else other.push({from:from,sub:sub});
+    });
+    var html='';
+    if(priority.length){
+      html+='<div class="mail-section-lbl">Priority</div>';
+      html+=priority.map(function(m){return'<div class="mail-item mail-urgent"><div class="mail-from">'+m.from.replace(/<.*>/,'').trim()+'</div><div class="mail-subj">'+m.sub+'</div></div>';}).join('');
+    }
+    if(other.length){
+      html+='<div class="mail-section-lbl">Other Unread ('+other.length+')</div>';
+      html+=other.slice(0,8).map(function(m){return'<div class="mail-item"><div class="mail-from">'+m.from.replace(/<.*>/,'').trim()+'</div><div class="mail-subj">'+m.sub+'</div></div>';}).join('');
+    }
+    el.innerHTML=html||'<div class="cal-empty">Inbox clear</div>';
+  });
+}
+
+function renderFarmTasks(){
+  var el=document.getElementById('farm-tasks');if(!el)return;
+  el.innerHTML=FARM.map(function(f,i){
+    var tid='farm-'+i,done=T[tid]||false;
+    return'<div class="task-item"><div class="task-chk'+(done?' on':'')+'" id="ck-'+tid+'" onclick="toggleTask(\''+tid+'\')"></div><div class="task-body"><div class="task-title'+(done?' done':'')+'" id="tl-'+tid+'">'+f+'</div></div></div>';
+  }).join('');
+}
+
+function renderPersonalTasks(){
+  var el=document.getElementById('personal-tasks');if(!el)return;
+  var pts=ls('dpa3_pt')||[];
+  if(!pts.length){el.innerHTML='<div style="padding:12px 0;font-size:15px;color:var(--t3)">No personal tasks</div>';return;}
+  el.innerHTML=pts.map(function(t,i){
+    var tid='pt-'+i;
+    return'<div class="task-item"><div class="task-chk'+(t.done?' on':'')+'" id="ck-'+tid+'" onclick="togglePT('+i+')"></div><div class="task-body"><div class="task-title'+(t.done?' done':'')+'" id="tl-'+tid+'">'+t.text+'</div></div></div>';
+  }).join('');
+}
+
+function toggleTask(tid){
+  T[tid]=!T[tid];ls('dpa3_t',T);
+  var ck=document.getElementById('ck-'+tid),tl=document.getElementById('tl-'+tid);
+  if(ck)ck.className='task-chk'+(T[tid]?' on':'');
+  if(tl)tl.className='task-title'+(T[tid]?' done':'');
+}
+
+function togglePT(i){
+  var pts=ls('dpa3_pt')||[];if(!pts[i])return;
+  pts[i].done=!pts[i].done;ls('dpa3_pt',pts);renderPersonalTasks();
+}
+
+window.onload=boot;
+</script>
+</body>
+</html>
