@@ -387,7 +387,8 @@ var GSCOPE='https://www.googleapis.com/auth/calendar.readonly https://www.google
 var PROXY='https://ditty-pa-proxy.hddittemore.workers.dev';
 var S={},T={},GT=null,CUR='home';
 var FARM=['Chicken water','Chicken food','Check bees','Garden check'];
-var PRIORITY_SENDERS=['elks','edward jones','ducks unlimited','tami','iu health','bill','invoice','statement','duke energy'];
+var PRIORITY_FROM=['tami','elks','edward jones','ducks unlimited','iu health'];
+var PRIORITY_SUBJECT=['receipt','payment','invoice','statement','bill','due','claim','confirmation','transaction','order'];
 
 function ls(k,v){if(v!==undefined)localStorage.setItem(k,typeof v==='string'?v:JSON.stringify(v));else{try{var r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return null;}}}
 
@@ -563,7 +564,9 @@ function loadHome(){
       var priority=emailData.messages.filter(function(m){
         var hh=(m.payload&&m.payload.headers)||[];
         var from='';hh.forEach(function(h){if(h.name==='From')from=h.value.toLowerCase();});
-        return PRIORITY_SENDERS.some(function(s){return from.indexOf(s)>-1;});
+        var hh2=(m.payload&&m.payload.headers)||[];var sub2='';
+        hh2.forEach(function(h){if(h.name==='Subject')sub2=h.value.toLowerCase();});
+        return PRIORITY_FROM.some(function(s){return from.indexOf(s)>-1;})||PRIORITY_SUBJECT.some(function(s){return sub2.indexOf(s)>-1;});
       }).slice(0,3);
       var phtml=priority.map(function(m){
         var hh=(m.payload&&m.payload.headers)||[];var sub='',from='';
@@ -635,7 +638,7 @@ function loadMail(){
     data.messages.forEach(function(m){
       var hh=(m.payload&&m.payload.headers)||[];var from='',sub='';
       hh.forEach(function(h){if(h.name==='From')from=h.value;if(h.name==='Subject')sub=h.value;});
-      var isPri=PRIORITY_SENDERS.some(function(s){return from.toLowerCase().indexOf(s)>-1;});
+      var isPri=PRIORITY_FROM.some(function(s){return from.toLowerCase().indexOf(s)>-1;})||PRIORITY_SUBJECT.some(function(s){return sub.toLowerCase().indexOf(s)>-1;});
       if(isPri)priority.push({from:from,sub:sub});else other.push({from:from,sub:sub});
     });
     var html='';
