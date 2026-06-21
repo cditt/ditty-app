@@ -580,7 +580,7 @@ function loadHome(){
     // Portfolio
     var port=document.getElementById('portfolio-card');
     if(port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty">Loading stocks...</div>';
-    callClaude('Search current stock prices for these tickers: GOOGL, DKNG, LMT, MU, IHAK, SCZ, SPY, VO, VOO. Today is '+new Date().toDateString()+'. Return ONLY a raw JSON array, no markdown, no backticks, no explanation. Exact format: [{"ticker":"GOOGL","price":"185.20","change":"+2.10","pct":"+1.15%"},{"ticker":"DKNG","price":"27.50","change":"-0.80","pct":"-2.83%"}]',function(sr){
+    callClaude('Search current stock prices for these tickers: GOOGL, DKNG, LMT, MU, IHAK, SCZ, SPY, VO, VOO. Today is '+new Date().toDateString()+'. Return ONLY a raw JSON array, no markdown, no backticks, no explanation. Exact format: [{"ticker":"GOOGL","price":"185.20","change":"+2.10","pct":"+1.15%"}]',function(sr){
       try{
         var fi=sr.indexOf('['),li=sr.lastIndexOf(']');
         if(fi===-1||li===-1)throw new Error('no array');
@@ -588,11 +588,11 @@ function loadHome(){
         if(!Array.isArray(sd)||!sd.length)throw new Error('empty');
         var MU_COST=118;
         var rows=sd.map(function(s){
-          var chg=parseFloat((s.change||'0').toString().replace(/[^0-9.\-]/g,''))*((s.change||'').toString().indexOf('-')>-1?-1:1);
-          var isUp=chg>=0;
+          var chgNum=parseFloat((s.change||'0').replace(/[^0-9.\-]/g,''))*(s.change&&s.change.indexOf('-')>-1?-1:1);
+          var isUp=chgNum>=0;
           var price=parseFloat(s.price)||0;
-          var muNote=s.ticker==='MU'?'<div style="font-size:11px;color:var(--t2)">cost $'+MU_COST+' <span style="color:'+(price>MU_COST?'var(--ok)':'var(--danger)')+'"> '+(price>MU_COST?'+':'')+' $'+(price-MU_COST).toFixed(2)+'</span></div>':'';
-          return'<div class="port-row"><div class="port-ticker">'+s.ticker+'</div><div class="port-price"><div>$'+s.price+'</div>'+muNote+'</div><div class="port-chg '+(isUp?'up':'dn')+'">'+(isUp&&s.change.indexOf('+')===-1?'+':'')+s.change+'<div style="font-size:11px">'+(s.pct||'')+'</div></div></div>';
+          var muNote=s.ticker==='MU'?'<div style="font-size:11px;color:var(--t2)">cost $'+MU_COST+' <span style="color:'+(price>MU_COST?'var(--ok)':'var(--danger)')+'>'+(price>MU_COST?'+':'')+' $'+(price-MU_COST).toFixed(2)+'</span></div>':'';
+          return'<div class="port-row"><div class="port-ticker">'+s.ticker+'</div><div class="port-price"><div>$'+s.price+'</div>'+muNote+'</div><div class="port-chg '+(isUp?'up':'dn')+'">'+(isUp&&(s.change||'').indexOf('+')===-1?'+':'')+s.change+'<div style="font-size:11px">'+(s.pct||'')+'</div></div></div>';
         }).join('');
         if(port)port.innerHTML='<div class="hcard-label">Portfolio</div>'+rows;
       }catch(e){
