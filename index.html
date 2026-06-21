@@ -577,38 +577,26 @@ function loadHome(){
 
     // Portfolio
     var port=document.getElementById('portfolio-card');
-    var tickers=['GOOGL','DKNG','MU','SPY','VOO'];
-    var results=[];var done=0;
-    tickers.forEach(function(t){
-      fetch('https://query1.finance.yahoo.com/v8/finance/chart/'+t+'?interval=1d&range=1d',{headers:{'User-Agent':'Mozilla/5.0'}})
-        .then(function(r){return r.json();})
-        .then(function(d){
-          try{
-            var meta=d.chart.result[0].meta;
-            var price=meta.regularMarketPrice.toFixed(2);
-            var prev=meta.chartPreviousClose||meta.previousClose||price;
-            var chg=(meta.regularMarketPrice-prev).toFixed(2);
-            var pct=((meta.regularMarketPrice-prev)/prev*100).toFixed(2);
-            results.push({ticker:t,price:price,chg:chg,pct:pct});
-          }catch(e){results.push({ticker:t,price:'--',chg:'0',pct:'0'});}
-          done++;
-          if(done===tickers.length){
-            var ordered=tickers.map(function(tk){return results.find(function(r){return r.ticker===tk;})||{ticker:tk,price:'--',chg:'0',pct:'0'};});
-            var rows=ordered.map(function(s){
-              var chgNum=parseFloat(s.chg)||0;
-              var isUp=chgNum>=0;
-              var muNote=s.ticker==='MU'?'<div style="font-size:11px;color:var(--t2);margin-top:1px">cost $118</div>':'';
-              return'<div class="port-row"><div class="port-ticker">'+s.ticker+'</div><div class="port-price"><div>$'+s.price+'</div>'+muNote+'</div><div class="port-chg '+(isUp?'up':'dn')+'">'+(isUp?'+':'')+s.chg+'<div style="font-size:11px">'+(isUp?'+':'')+s.pct+'%</div></div></div>';
-            }).join('');
-            if(port)port.innerHTML='<div class="hcard-label">Portfolio</div>'+rows;
-          }
-        })
-        .catch(function(){
-          done++;
-          results.push({ticker:t,price:'--',chg:'0',pct:'0'});
-          if(done===tickers.length&&port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty">Market closed or data unavailable</div>';
-        });
-    });
+    fetch(PROXY+'/stocks?symbols=GOOGL,DKNG,MU,SPY,VOO')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(!d.stocks||!d.stocks.length){
+          if(port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty">'+(d.error||'Market data unavailable')+'</div>';
+          return;
+        }
+        var rows=d.stocks.map(function(s){
+          var isUp=(s.change||0)>=0;
+          var muNote=s.ticker==='MU'?'<div style="font-size:11px;color:var(--t2);margin-top:1px">cost $118 &nbsp;'+(s.price&&s.price>118?'<span style="color:var(--ok)">+$'+(s.price-118).toFixed(2)+'</span>':'<span style="color:var(--danger)">-$'+(118-s.price).toFixed(2)+'</span>')+'</div>':'';
+          var priceStr=s.price?'$'+s.price.toFixed(2):'--';
+          var chgStr=s.change!==null?(isUp?'+':'')+s.change.toFixed(2):'--';
+          var pctStr=s.percent!==null?(isUp?'+':'')+s.percent.toFixed(2)+'%':'';
+          return'<div class="port-row"><div class="port-ticker">'+s.ticker+'</div><div class="port-price"><div>'+priceStr+'</div>'+muNote+'</div><div class="port-chg '+(isUp?'up':'dn')+'">'+chgStr+'<div style="font-size:11px">'+pctStr+'</div></div></div>';
+        }).join('');
+        if(port)port.innerHTML='<div class="hcard-label">Portfolio</div>'+rows;
+      })
+      .catch(function(){
+        if(port)port.innerHTML='<div class="hcard-label">Portfolio</div><div class="hcard-empty">Market data unavailable</div>';
+      });
   });
 }
 
