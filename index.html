@@ -291,12 +291,6 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
   <h1 class="setup-title">Ditty's Fat Journey</h1>
   <p class="setup-sub">One-time setup. Lock in &amp; get to work.</p>
   <div class="setup-form">
-    <label>Goal Weight (lbs)</label>
-    <input type="number" id="setup-goal" placeholder="e.g. 185">
-    <label>Your Age</label>
-    <input type="number" id="setup-age" placeholder="e.g. 38">
-    <label>Your Height (inches)</label>
-    <input type="number" id="setup-height" placeholder='e.g. 70 for 5ft 10"'>
     <label>OpenAI API Key</label>
     <input type="password" id="setup-key" placeholder="sk-...">
     <label>JSONBin Sync Key (optional)</label>
@@ -319,12 +313,6 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
       <button onclick="copyBinId()" class="btn-secondary" style="white-space:nowrap;padding:6px 10px;font-size:10px;">Copy</button>
     </div>
     <div id="settings-binid-display" style="font-family:'Courier Prime',monospace;font-size:9px;color:#7a6040;margin-bottom:10px;word-break:break-all;"></div>
-    <label>Goal Weight (lbs)</label>
-    <input type="number" id="settings-goal" placeholder="185">
-    <label>Your Age</label>
-    <input type="number" id="settings-age" placeholder="38">
-    <label>Your Height (inches)</label>
-    <input type="number" id="settings-height" placeholder="70">
     <label>Daily Protein Goal (g)</label>
     <input type="number" id="settings-protein-goal" placeholder="180">
     <label>Daily Carbs Goal (g)</label>
@@ -929,7 +917,7 @@ var DEFAULT_PILLS=[
   {id:5,name:'Tadalafil',dose:'5mg',taken:false,daily:true,injDay:null}
 ];
 
-var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:null,log:[],weightHistory:[],lastReset:null,apiKey:null,pills:null,savedFoods:[],userAge:null,userHeight:null,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current'};
+var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:205,log:[],weightHistory:[],lastReset:null,apiKey:null,pills:null,savedFoods:[],userAge:44,userHeight:71,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current'};
 var scannerStream=null,barcodeDetector=null,scanInterval=null,currentProductData=null;
 var currentPhotoItems=null;
 var notifCheckInterval=null;
@@ -1066,10 +1054,10 @@ function checkReset(){
   S.calories=0;S.protein=0;S.carbs=0;S.fat=0;S.burned=0;S.water=0;S.steps=0;S.log=[];
   S.lastReset=today;
   if(S.pills){for(var i=0;i<S.pills.length;i++){S.pills[i].taken=false;}}
-  // Save locally first, then push reset pill state to cloud so other devices see today's reset
+  // Save LOCALLY ONLY — never push reset state to cloud
+  // The first real data log of the new day will push
   try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
-  console.log('[RESET] COMPLETE — daily counters zeroed, pushing reset pill state to cloud');
-  if(S.jsonbinKey&&S.jsonbinBinId){pushSync();}
+  console.log('[RESET] COMPLETE — daily counters zeroed, NOT pushed to cloud');
 }
 
 function checkSetup(){
@@ -1077,17 +1065,14 @@ function checkSetup(){
 }
 
 function completeSetup(){
-  var gw=parseFloat(document.getElementById('setup-goal').value);
   var ak=document.getElementById('setup-key').value.trim();
   var jk=document.getElementById('setup-jsonbin').value.trim();
-  var age=parseInt(document.getElementById('setup-age').value)||44;
-  var ht=parseFloat(document.getElementById('setup-height').value)||71;
-  if(!ak||!gw){alert('Fill in Goal Weight and API Key.');return;}
-  S.goalWeight=gw;
+  if(!ak){alert('Enter your OpenAI API Key.');return;}
+  S.goalWeight=205;// hard-coded
+  S.userAge=44;   // hard-coded
+  S.userHeight=71;// hard-coded
   S.apiKey=ak;
   if(jk)S.jsonbinKey=jk;
-  S.userAge=age;
-  S.userHeight=ht;
   if(!S.calHistory)S.calHistory={};
   if(!S.workoutSets)S.workoutSets={};
   if(!S.milestonesHit)S.milestonesHit={};
@@ -1751,9 +1736,6 @@ function openSettings(){
   var role=localStorage.getItem('deviceRole')||'primary';
   var roleDisp=document.getElementById('device-role-display');
   if(roleDisp)roleDisp.textContent=role==='mirror'?'MIRROR — pull only (laptop/desktop)':'PRIMARY — can push (phone)';
-  document.getElementById('settings-goal').value=S.goalWeight||'';
-  document.getElementById('settings-age').value=S.userAge||'';
-  document.getElementById('settings-height').value=S.userHeight||'';
   document.getElementById('settings-protein-goal').value=S.proteinGoal||180;
   document.getElementById('settings-carbs-goal').value=S.carbsGoal||150;
   document.getElementById('settings-fat-goal').value=S.fatGoal||70;
@@ -1766,19 +1748,16 @@ function closeSettings(){document.getElementById('settings-modal').style.display
 function saveSettings(){
   var jk=document.getElementById('settings-jsonbin').value.trim();
   var bid=document.getElementById('settings-binid').value.trim();
-  var gw=parseFloat(document.getElementById('settings-goal').value);
   var ak=document.getElementById('settings-openai').value.trim();
-  var age=parseInt(document.getElementById('settings-age').value);
-  var ht=parseFloat(document.getElementById('settings-height').value);
   var pg=parseInt(document.getElementById('settings-protein-goal').value);
   var cg=parseInt(document.getElementById('settings-carbs-goal').value);
   var fg=parseInt(document.getElementById('settings-fat-goal').value);
   if(jk)S.jsonbinKey=jk;
   if(bid)S.jsonbinBinId=bid;// Allow manual bin ID entry to link devices
-  if(gw)S.goalWeight=gw;
   if(ak)S.apiKey=ak;
-  if(age)S.userAge=age;
-  if(ht)S.userHeight=ht;
+  S.goalWeight=205;// hard-coded
+  S.userAge=44;   // hard-coded
+  S.userHeight=71;// hard-coded
   if(pg)S.proteinGoal=pg;
   if(cg)S.carbsGoal=cg;
   if(fg)S.fatGoal=fg;
