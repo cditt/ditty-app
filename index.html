@@ -291,8 +291,6 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
   <h1 class="setup-title">Ditty's Fat Journey</h1>
   <p class="setup-sub">One-time setup. Lock in &amp; get to work.</p>
   <div class="setup-form">
-    <label>JSONBin Sync Key (optional)</label>
-    <input type="password" id="setup-jsonbin" placeholder="$2b$10$...">
     <p class="setup-note">Start: 252.2 lbs &middot; Goal: 1,800 cal &middot; 128oz water</p>
     <button class="btn-primary" onclick="completeSetup()">LET'S GET IT &#x1F525;</button>
   </div>
@@ -302,8 +300,6 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
 <div id="settings-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:300;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;">
   <div style="background:#f0dca8;border:3px solid #2a1600;padding:20px;width:90%;max-width:400px;position:relative;max-height:90vh;overflow-y:auto;">
     <div style="font-family:'Special Elite',cursive;font-size:16px;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px;color:#1a0d00;">Settings</div>
-    <label>JSONBin Sync Key</label>
-    <input type="password" id="settings-jsonbin" placeholder="$2b$10$...">
     <label>JSONBin Bin ID <span style="font-size:9px;color:#b81c1c;">(copy this to other device)</span></label>
     <div style="font-family:'Courier Prime',monospace;font-size:9px;color:#2a7a2a;margin-bottom:4px;">&#128275; Bin ID can be public. Sync key must stay private.</div>
     <div style="display:flex;gap:6px;margin-bottom:8px;">
@@ -913,10 +909,11 @@ var DEFAULT_PILLS=[
   {id:5,name:'Tadalafil',dose:'5mg',taken:false,daily:true,injDay:null}
 ];
 
-/* ── CLOUDFLARE WORKER ENDPOINT ── update after deploying worker ── */
-var WORKER_URL='https://ditty-ai.YOUR_SUBDOMAIN.workers.dev/api/chat';
+/* ── CLOUDFLARE WORKER ENDPOINTS ── ditty-fatjourney-ai.hddittemore.workers.dev ── */
+var WORKER_URL='https://ditty-fatjourney-ai.hddittemore.workers.dev/api/chat';
+var JSONBIN_BASE='https://ditty-fatjourney-ai.hddittemore.workers.dev/jsonbin/';
 
-var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:205,log:[],weightHistory:[],lastReset:null,setupDone:false,pills:null,savedFoods:[],userAge:44,userHeight:71,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current'};
+var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:205,log:[],weightHistory:[],lastReset:null,setupDone:false,pills:null,savedFoods:[],userAge:44,userHeight:71,notifEnabled:false,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current'};
 var scannerStream=null,barcodeDetector=null,scanInterval=null,currentProductData=null;
 var currentPhotoItems=null;
 var notifCheckInterval=null;
@@ -951,10 +948,6 @@ function init(){
   if(!S.workoutSets)S.workoutSets={};
   loadCurrentPlan();
   // Warn if sync key is missing — bin ID alone is useless without it
-  if(S.jsonbinBinId&&!S.jsonbinKey){
-    console.log('[INIT] Bin ID present but sync key missing — user must enter key in Settings');
-    showBanner('Enter your JSONBin sync key in Settings to enable sync.',true);
-  }
   // Pre-fill Monday Push (PPL=0, day=0) and Thursday Legs (PPL=0, day=3) from screenshots
   var PREFILL={
     // Monday Push — exercise index: 0=Bench, 1=Incline DB, 2=Overhead, 3=Lateral, 4=Tricep Push, 5=OHT Ext
@@ -987,7 +980,7 @@ function init(){
   checkReset();
   checkSetup();
   processURL();// URL params written before any async sync starts
-  if(S.jsonbinKey)initSync();
+  if(S.jsonbinBinId)initSync();
   render();
   updateIF();
   setInterval(updateIF,30000);
@@ -997,7 +990,7 @@ function init(){
   console.log('[INIT] App loaded. Bin ID: '+(S.jsonbinBinId||'NONE')+' Date: '+getLocalDateKey()+' lastReset: '+(S.lastReset||'none'));
   // Pull fresh data when user returns to the app tab
   document.addEventListener('visibilitychange',function(){
-    if(document.visibilityState==='visible'&&S.jsonbinKey&&S.jsonbinBinId){
+    if(document.visibilityState==='visible'&&S.jsonbinBinId){
       console.log('[SYNC] Tab visible — pulling latest');
       // Only pull if not currently syncing — don't blindly reset lock
       if(!syncLock)pullSync();
@@ -1060,16 +1053,14 @@ function checkReset(){
 }
 
 function checkSetup(){
-  if(S.setupDone||S.jsonbinKey)document.getElementById('setup-screen').style.display='none';
+  if(S.setupDone||S.jsonbinBinId)document.getElementById('setup-screen').style.display='none';
 }
 
 function completeSetup(){
-  var jk=document.getElementById('setup-jsonbin').value.trim();
   S.goalWeight=205;// hard-coded
   S.userAge=44;   // hard-coded
   S.userHeight=71;// hard-coded
   S.setupDone=true;
-  if(jk)S.jsonbinKey=jk;
   if(!S.calHistory)S.calHistory={};
   if(!S.workoutSets)S.workoutSets={};
   if(!S.milestonesHit)S.milestonesHit={};
@@ -1077,18 +1068,16 @@ function completeSetup(){
   try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
   // Hide setup screen first so crash doesn't trap user
   document.getElementById('setup-screen').style.display='none';
-  // Now init sync — if bin ID exists pull, otherwise show recovery (NEVER auto-create)
-  if(S.jsonbinKey){
-    try{
-      if(S.jsonbinBinId){
-        console.log('[SETUP] Bin ID found, pulling existing data');
-        initSync();
-      }else{
-        console.log('[SETUP] No bin ID — showing recovery screen');
-        showBinRecovery();
-      }
-    }catch(e){}
-  }
+  // Now init sync — bin ID is always set via DEFAULT_BIN_ID fallback
+  try{
+    if(S.jsonbinBinId){
+      console.log('[SETUP] Bin ID found, pulling existing data');
+      initSync();
+    }else{
+      console.log('[SETUP] No bin ID — showing recovery screen');
+      showBinRecovery();
+    }
+  }catch(e){}
   try{render();}catch(e){}
 }
 
@@ -1724,7 +1713,6 @@ function dismissBanner(){document.getElementById('notif-banner').classList.remov
 
 /* ── SETTINGS ── */
 function openSettings(){
-  document.getElementById('settings-jsonbin').value=S.jsonbinKey||'';
   document.getElementById('settings-binid').value=S.jsonbinBinId||'';
   var disp=document.getElementById('settings-binid-display');
   var isDefault=S.jsonbinBinId===DEFAULT_BIN_ID;
@@ -1741,12 +1729,10 @@ function openSettings(){
 function closeSettings(){document.getElementById('settings-modal').style.display='none';}
 
 function saveSettings(){
-  var jk=document.getElementById('settings-jsonbin').value.trim();
   var bid=document.getElementById('settings-binid').value.trim();
   var pg=parseInt(document.getElementById('settings-protein-goal').value);
   var cg=parseInt(document.getElementById('settings-carbs-goal').value);
   var fg=parseInt(document.getElementById('settings-fat-goal').value);
-  if(jk)S.jsonbinKey=jk;
   if(bid)S.jsonbinBinId=bid;// Allow manual bin ID entry to link devices
   S.goalWeight=205;// hard-coded
   S.userAge=44;   // hard-coded
@@ -1756,10 +1742,7 @@ function saveSettings(){
   if(fg)S.fatGoal=fg;
   S.macroGoals={protein:S.proteinGoal||0,carbs:S.carbsGoal||0,fat:S.fatGoal||0};
   save();
-  if(S.jsonbinKey&&!S.jsonbinBinId){
-    console.log('[SETTINGS] No bin ID — showing recovery');
-    showBinRecovery();
-  }else if(S.jsonbinKey){
+  if(S.jsonbinBinId){
     initSync();
   }
   closeSettings();
@@ -1778,8 +1761,8 @@ function copyBinId(){
 
 function confirmReset(){
   if(confirm('Reset ALL data? This cannot be undone.')){
-    var jk=S.jsonbinKey;var bid=S.jsonbinBinId;
-    S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,weight:null,goalWeight:205,log:[],weightHistory:[],lastReset:new Date().toDateString(),setupDone:true,pills:JSON.parse(JSON.stringify(DEFAULT_PILLS)),savedFoods:[],userAge:44,userHeight:71,notifEnabled:S.notifEnabled,jsonbinKey:jk,jsonbinBinId:bid,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current',workoutSets:{}};
+    var bid=S.jsonbinBinId;
+    S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,weight:null,goalWeight:205,log:[],weightHistory:[],lastReset:new Date().toDateString(),setupDone:true,pills:JSON.parse(JSON.stringify(DEFAULT_PILLS)),savedFoods:[],userAge:44,userHeight:71,notifEnabled:S.notifEnabled,jsonbinBinId:bid,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current',workoutSets:{}};
     workoutSets={};
     // CRITICAL: Do NOT call save() — it calls pushSync() and would push zeroed state to cloud
     // Write locally only; cloud keeps old data until next real log
@@ -2209,7 +2192,7 @@ function openTodayWorkout(){
 /* Rule: every push stamps lastModified. Every pull checks if remote is newer. Last writer wins. */
 
 function initSync(){
-  if(!S.jsonbinKey)return;
+  if(!S.jsonbinBinId)return;
   console.log('[SYNC] initSync, bin='+S.jsonbinBinId);
   pullSync();
   if(SYNC_INTERVAL)clearInterval(SYNC_INTERVAL);
@@ -2249,7 +2232,6 @@ function pushSync(isForce){
     console.warn('[SYNC] PUSH BLOCKED ON MIRROR — device='+(!isMobile?'desktop':'mobile')+' role='+role);
     return;
   }
-  if(!S.jsonbinKey){console.log('[SYNC] No key, skip push');return;}
   if(!S.jsonbinBinId){console.log('[SYNC] Missing bin ID — recovery');showBinRecovery();return;}
   if(syncLock&&!isForce){console.log('[SYNC] Push blocked — lock active');return;}
   if(!isMeaningfullyPopulated(S)){
@@ -2265,9 +2247,9 @@ function pushSync(isForce){
   var ss=document.getElementById('sync-status');
   if(ss)ss.textContent='pushing...';
   console.log('[SYNC] Push start ts='+S.lastModified+' logCount='+((S.log&&S.log.length)||0));
-  fetch('https://api.jsonbin.io/v3/b/'+S.jsonbinBinId,{
+  fetch(JSONBIN_BASE+'b/'+S.jsonbinBinId,{
     method:'PUT',
-    headers:{'Content-Type':'application/json','X-Master-Key':S.jsonbinKey},
+    headers:{'Content-Type':'application/json'},
     body:JSON.stringify(S)
   }).then(function(){
     syncLock=false;
@@ -2284,14 +2266,12 @@ function pushSync(isForce){
 }
 
 function pullSync(){
-  if(!S.jsonbinKey||!S.jsonbinBinId){console.log('[SYNC] Pull skip — no key/bin');return;}
+  if(!S.jsonbinBinId){console.log('[SYNC] Pull skip — no bin');return;}
   if(syncLock){console.log('[SYNC] Pull blocked — lock active');return;}
   syncLock=true;
   var ss=document.getElementById('sync-status');
   console.log('[SYNC] Pull start bin='+S.jsonbinBinId);
-  fetch('https://api.jsonbin.io/v3/b/'+S.jsonbinBinId+'/latest',{
-    headers:{'X-Master-Key':S.jsonbinKey}
-  }).then(function(r){return r.json();}).then(function(data){
+  fetch(JSONBIN_BASE+'b/'+S.jsonbinBinId+'/latest').then(function(r){return r.json();}).then(function(data){
     if(!data||!data.record){syncLock=false;return;}
     var remote=data.record;
     if(typeof remote!=='object'||Array.isArray(remote)){syncLock=false;console.log('[SYNC] Remote invalid, ignoring');return;}
@@ -2342,9 +2322,9 @@ function pullSync(){
       eks.sort();for(var j=0;j<eks.length-5;j++)localStorage.removeItem(eks[j]);
       console.log('[SYNC] Emergency backup: '+bkKey);
     }catch(e){}
-    var binId=S.jsonbinBinId;var jk=S.jsonbinKey;
+    var binId=S.jsonbinBinId;
     S=Object.assign({},S,remote);
-    S.jsonbinBinId=binId;S.jsonbinKey=jk;
+    S.jsonbinBinId=binId;
     if(!S.pills||S.pills.length===0)S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));
     if(!S.savedFoods)S.savedFoods=[];
     if(!S.workoutSets)S.workoutSets={};
@@ -2367,12 +2347,12 @@ function pullSync(){
 
 
 function createBin(){
-  if(!S.jsonbinKey)return;
+  if(!S.jsonbinBinId&&DEFAULT_BIN_ID){S.jsonbinBinId=DEFAULT_BIN_ID;}// fallback
   S.lastModified=Date.now();
   console.log('[SYNC] Creating new bin...');
-  fetch('https://api.jsonbin.io/v3/b',{
+  fetch(JSONBIN_BASE+'b',{
     method:'POST',
-    headers:{'Content-Type':'application/json','X-Master-Key':S.jsonbinKey,'X-Bin-Name':'DittyFatJourney','X-Bin-Private':'true'},
+    headers:{'Content-Type':'application/json','X-Bin-Name':'DittyFatJourney','X-Bin-Private':'true'},
     body:JSON.stringify(S)
   }).then(function(r){return r.json();}).then(function(data){
     if(data&&data.metadata&&data.metadata.id){
@@ -2391,7 +2371,7 @@ function showBinRecovery(){
     console.log('[RECOVERY] Skipped — applying DEFAULT_BIN_ID fallback');
     S.jsonbinBinId=DEFAULT_BIN_ID;
     try{localStorage.setItem('ditty_v3',JSON.stringify(S));console.log('[INIT] Restored localStorage bin ID from fallback');}catch(e){}
-    if(S.jsonbinKey){syncLock=false;initSync();}
+    syncLock=false;initSync();
     return;
   }
   console.log('[RECOVERY] No fallback — showing recovery screen');
@@ -2407,12 +2387,11 @@ function hideBinRecovery(){
 function recoveryReconnect(){
   var bid=document.getElementById('recovery-binid').value.trim();
   if(!bid){alert('Paste your Bin ID first.');return;}
-  if(!S.jsonbinKey){alert('Enter your JSONBin sync key in Settings first.');return;}
   // Validate the bin is accessible before committing to it
   var recovBtn=document.getElementById('recovery-binid');
   if(recovBtn)recovBtn.disabled=true;
   console.log('[RECOVERY] Validating bin: '+bid);
-  fetch('https://api.jsonbin.io/v3/b/'+bid+'/latest',{headers:{'X-Master-Key':S.jsonbinKey}})
+  fetch(JSONBIN_BASE+'b/'+bid+'/latest')
   .then(function(r){return r.json();})
   .then(function(data){
     if(recovBtn)recovBtn.disabled=false;
@@ -2485,9 +2464,9 @@ function restoreFromLocalBackup(key){
     var raw=localStorage.getItem(key);
     if(!raw){alert('Backup not found.');return;}
     var backup=JSON.parse(raw);
-    var jk=S.jsonbinKey;var bid=S.jsonbinBinId;
+    var bid=S.jsonbinBinId;
     S=Object.assign({},backup);
-    S.jsonbinKey=jk;S.jsonbinBinId=bid;
+    S.jsonbinBinId=bid;
     workoutSets=S.workoutSets||{};
     localStorage.setItem('ditty_v3',JSON.stringify(S));
     render();closeSettings();
@@ -2542,15 +2521,12 @@ function importSyncBackup(input){
       syncLock=true;
       if(SYNC_INTERVAL){clearInterval(SYNC_INTERVAL);SYNC_INTERVAL=null;}
 
-      // Preserve current device keys — never import another device's API key
-      var jk=S.jsonbinKey;
       var isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
       // Full replace of S with backup data
       S=JSON.parse(JSON.stringify(d));// Deep copy — no reference sharing
 
-      // Restore device-specific keys
-      S.jsonbinKey=jk||d.jsonbinKey;
+      // Restore bin ID
       S.jsonbinBinId=backup.binId;
 
       // Ensure all required arrays/objects exist
@@ -2594,7 +2570,7 @@ function importSyncBackup(input){
 
       // Only restart sync on PRIMARY device — mirror never pushes anyway
       // Use a delay so render() completes before sync starts
-      if(S.jsonbinKey&&S.jsonbinBinId){
+      if(S.jsonbinBinId){
         console.log('[IMPORT] Restarting sync after import');
         initSync();
       }
