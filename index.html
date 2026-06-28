@@ -902,11 +902,13 @@ var ICON_DATA='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAg
 var CAL_GOAL=1800,WATER_GOAL=128,START_WEIGHT=252.2,IF_START=11,IF_END=19;
 
 var DEFAULT_PILLS=[
-  {id:1,name:'Creatine',dose:'5g',taken:false,daily:true,injDay:null},
-  {id:2,name:'Lisinopril',dose:'40mg',taken:false,daily:true,injDay:null},
-  {id:3,name:'Omeprazole',dose:'40mg',taken:false,daily:true,injDay:null},
-  {id:4,name:'Testosterone Cyp',dose:'200mg/ml 1ml',taken:false,daily:false,injDay:0},
-  {id:5,name:'Tadalafil',dose:'5mg',taken:false,daily:true,injDay:null}
+  {id:1,name:'Lisinopril',dose:'40mg',taken:false,daily:true,injDay:null},
+  {id:2,name:'Omeprazole',dose:'40mg',taken:false,daily:true,injDay:null},
+  {id:3,name:'Tadalafil',dose:'5mg',taken:false,daily:true,injDay:null},
+  {id:4,name:'Creatine',dose:'5g',taken:false,daily:true,injDay:null},
+  {id:5,name:'Alpha Brain',dose:'',taken:false,daily:true,injDay:null},
+  {id:6,name:'Testosterone',dose:'200mg/ml 1ml',taken:false,daily:false,injDay:0},
+  {id:7,name:'Retatrutide',dose:'',taken:false,daily:false,injDay:0}
 ];
 
 /* ── CLOUDFLARE WORKER ENDPOINTS ── ditty-fatjourney-ai.hddittemore.workers.dev ── */
@@ -944,6 +946,7 @@ function init(){
     console.log('[INIT] Using localStorage bin ID: '+S.jsonbinBinId);
   }
   if(!S.pills||S.pills.length===0){S.pills=JSON.parse(JSON.stringify(DEFAULT_PILLS));}
+  ensureRequiredPills();// merge any missing required meds without wiping existing data
   if(!S.savedFoods)S.savedFoods=[];
   if(!S.workoutSets)S.workoutSets={};
   loadCurrentPlan();
@@ -1300,6 +1303,39 @@ function deleteLogItem(idx){
 }
 
 /* ── PILL FUNCTIONS ── */
+
+/* Ensures all 7 required meds exist in S.pills without wiping existing data.
+   Matches by name (case-insensitive, partial) so "Testosterone Cyp" won't
+   cause a duplicate "Testosterone" entry. Runs once on every boot. */
+function ensureRequiredPills(){
+  var required=[
+    {name:'Lisinopril',    dose:'40mg',         daily:true,  injDay:null},
+    {name:'Omeprazole',    dose:'40mg',         daily:true,  injDay:null},
+    {name:'Tadalafil',     dose:'5mg',          daily:true,  injDay:null},
+    {name:'Creatine',      dose:'5g',           daily:true,  injDay:null},
+    {name:'Alpha Brain',   dose:'',             daily:true,  injDay:null},
+    {name:'Testosterone',  dose:'200mg/ml 1ml', daily:false, injDay:0},
+    {name:'Retatrutide',   dose:'',             daily:false, injDay:0}
+  ];
+  var maxId=0;
+  for(var i=0;i<S.pills.length;i++)if(S.pills[i].id>maxId)maxId=S.pills[i].id;
+  var added=false;
+  for(var r=0;r<required.length;r++){
+    var req=required[r];
+    var found=false;
+    for(var j=0;j<S.pills.length;j++){
+      if(S.pills[j].name.toLowerCase().indexOf(req.name.toLowerCase())>-1){found=true;break;}
+    }
+    if(!found){
+      maxId++;
+      S.pills.push({id:maxId,name:req.name,dose:req.dose,taken:false,daily:req.daily,injDay:req.injDay});
+      added=true;
+      console.log('[PILLS] Added missing required med: '+req.name);
+    }
+  }
+  if(added){try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}}
+}
+
 function isPillDay(pill){
   if(pill.daily)return true;
   if(pill.injDay!==null&&pill.injDay!==undefined)return new Date().getDay()===pill.injDay;
