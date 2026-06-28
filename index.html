@@ -291,11 +291,9 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
   <h1 class="setup-title">Ditty's Fat Journey</h1>
   <p class="setup-sub">One-time setup. Lock in &amp; get to work.</p>
   <div class="setup-form">
-    <label>OpenAI API Key</label>
-    <input type="password" id="setup-key" placeholder="sk-...">
     <label>JSONBin Sync Key (optional)</label>
     <input type="password" id="setup-jsonbin" placeholder="$2b$10$...">
-    <p class="setup-note">Get a key at platform.openai.com/api-keys<br>Start: 252.2 lbs &middot; Goal: 1,800 cal &middot; 128oz water</p>
+    <p class="setup-note">Start: 252.2 lbs &middot; Goal: 1,800 cal &middot; 128oz water</p>
     <button class="btn-primary" onclick="completeSetup()">LET'S GET IT &#x1F525;</button>
   </div>
 </div>
@@ -319,8 +317,6 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <input type="number" id="settings-carbs-goal" placeholder="150">
     <label>Daily Fat Goal (g)</label>
     <input type="number" id="settings-fat-goal" placeholder="70">
-    <label>OpenAI API Key</label>
-    <input type="password" id="settings-openai" placeholder="sk-...">
     <button class="btn-primary" onclick="requestNotifPermission()" style="background:#1a3a6a;border-color:#0a1a3a;margin-bottom:8px;">&#128276; Enable Notifications</button>
     <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
     <!-- BACKUP / RESTORE SECTION -->
@@ -917,7 +913,10 @@ var DEFAULT_PILLS=[
   {id:5,name:'Tadalafil',dose:'5mg',taken:false,daily:true,injDay:null}
 ];
 
-var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:205,log:[],weightHistory:[],lastReset:null,apiKey:null,pills:null,savedFoods:[],userAge:44,userHeight:71,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current'};
+/* ── CLOUDFLARE WORKER ENDPOINT ── update after deploying worker ── */
+var WORKER_URL='https://ditty-ai.YOUR_SUBDOMAIN.workers.dev/api/chat';
+
+var S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,steps:0,weight:null,goalWeight:205,log:[],weightHistory:[],lastReset:null,setupDone:false,pills:null,savedFoods:[],userAge:44,userHeight:71,notifEnabled:false,jsonbinKey:null,jsonbinBinId:null,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current'};
 var scannerStream=null,barcodeDetector=null,scanInterval=null,currentProductData=null;
 var currentPhotoItems=null;
 var notifCheckInterval=null;
@@ -942,7 +941,7 @@ function init(){
       console.log('[INIT] Using DEFAULT_BIN_ID fallback');
       S.jsonbinBinId=DEFAULT_BIN_ID;
       // Only persist bin ID if user already has credentials — prevents false-positive Recovery Mode on fresh install
-      if(S.apiKey&&S.goalWeight){try{localStorage.setItem('ditty_v3',JSON.stringify(S));console.log('[INIT] Persisted bin ID fallback (credentials present)');}catch(e){}}
+      if(S.goalWeight){try{localStorage.setItem('ditty_v3',JSON.stringify(S));console.log('[INIT] Persisted bin ID fallback (goalWeight present)');}catch(e){}}
     }
   }else{
     console.log('[INIT] Using localStorage bin ID: '+S.jsonbinBinId);
@@ -1061,17 +1060,15 @@ function checkReset(){
 }
 
 function checkSetup(){
-  if(S.apiKey&&S.goalWeight)document.getElementById('setup-screen').style.display='none';
+  if(S.setupDone||S.jsonbinKey)document.getElementById('setup-screen').style.display='none';
 }
 
 function completeSetup(){
-  var ak=document.getElementById('setup-key').value.trim();
   var jk=document.getElementById('setup-jsonbin').value.trim();
-  if(!ak){alert('Enter your OpenAI API Key.');return;}
   S.goalWeight=205;// hard-coded
   S.userAge=44;   // hard-coded
   S.userHeight=71;// hard-coded
-  S.apiKey=ak;
+  S.setupDone=true;
   if(jk)S.jsonbinKey=jk;
   if(!S.calHistory)S.calHistory={};
   if(!S.workoutSets)S.workoutSets={};
@@ -1472,14 +1469,13 @@ function handlePhotoFile(input){
 }
 
 function sendPhotoToAI(b64,mimeType){
-  if(!S.apiKey){alert('No API key set. Go to Settings.');return;}
   document.getElementById('photo-spinner').style.display='block';
   document.getElementById('photo-error').style.display='none';
   document.getElementById('photo-result-box').style.display='none';
   var prompt='You are a nutrition expert. Look at this food photo. List every food item you see and estimate the calories, protein (g), carbs (g), and fat (g) for each. Return ONLY a valid JSON object with no markdown, no explanation, no extra text. Format exactly: {"items":[{"name":"Food Name","calories":N,"protein":N,"carbs":N,"fat":N}]}';
-  fetch('https://api.openai.com/v1/chat/completions',{
+  fetch(WORKER_URL,{
     method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.apiKey},
+    headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
       model:'gpt-4o-mini',
       max_tokens:500,
@@ -1739,7 +1735,6 @@ function openSettings(){
   document.getElementById('settings-protein-goal').value=S.proteinGoal||180;
   document.getElementById('settings-carbs-goal').value=S.carbsGoal||150;
   document.getElementById('settings-fat-goal').value=S.fatGoal||70;
-  document.getElementById('settings-openai').value=S.apiKey||'';
   document.getElementById('settings-modal').style.display='flex';
 }
 
@@ -1748,13 +1743,11 @@ function closeSettings(){document.getElementById('settings-modal').style.display
 function saveSettings(){
   var jk=document.getElementById('settings-jsonbin').value.trim();
   var bid=document.getElementById('settings-binid').value.trim();
-  var ak=document.getElementById('settings-openai').value.trim();
   var pg=parseInt(document.getElementById('settings-protein-goal').value);
   var cg=parseInt(document.getElementById('settings-carbs-goal').value);
   var fg=parseInt(document.getElementById('settings-fat-goal').value);
   if(jk)S.jsonbinKey=jk;
   if(bid)S.jsonbinBinId=bid;// Allow manual bin ID entry to link devices
-  if(ak)S.apiKey=ak;
   S.goalWeight=205;// hard-coded
   S.userAge=44;   // hard-coded
   S.userHeight=71;// hard-coded
@@ -1785,9 +1778,8 @@ function copyBinId(){
 
 function confirmReset(){
   if(confirm('Reset ALL data? This cannot be undone.')){
-    var jk=S.jsonbinKey;var gw=S.goalWeight;var ak=S.apiKey;var bid=S.jsonbinBinId;
-    var age=S.userAge;var ht=S.userHeight;
-    S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,weight:null,goalWeight:gw,log:[],weightHistory:[],lastReset:new Date().toDateString(),apiKey:ak,pills:JSON.parse(JSON.stringify(DEFAULT_PILLS)),savedFoods:[],userAge:age,userHeight:ht,notifEnabled:S.notifEnabled,jsonbinKey:jk,jsonbinBinId:bid,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current',workoutSets:{}};
+    var jk=S.jsonbinKey;var bid=S.jsonbinBinId;
+    S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,weight:null,goalWeight:205,log:[],weightHistory:[],lastReset:new Date().toDateString(),setupDone:true,pills:JSON.parse(JSON.stringify(DEFAULT_PILLS)),savedFoods:[],userAge:44,userHeight:71,notifEnabled:S.notifEnabled,jsonbinKey:jk,jsonbinBinId:bid,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current',workoutSets:{}};
     workoutSets={};
     // CRITICAL: Do NOT call save() — it calls pushSync() and would push zeroed state to cloud
     // Write locally only; cloud keeps old data until next real log
@@ -1956,7 +1948,6 @@ var chatHistory=[];
 function sendChat(){
   var inp=document.getElementById('chat-input');var msg=inp.value.trim();if(!msg)return;
   inp.value='';addMsg(msg,'user');
-  if(!S.apiKey){addMsg('No API key. Go to Settings.','ai');return;}
   addMsg('...','ai');
   chatHistory.push({role:'user',content:msg});
   if(chatHistory.length>10)chatHistory=chatHistory.slice(-10);
@@ -1964,9 +1955,9 @@ function sendChat(){
   var messages=[{role:'system',content:sys}];
   for(var i=0;i<chatHistory.length-1;i++)messages.push(chatHistory[i]);
   messages.push({role:'user',content:msg});
-  fetch('https://api.openai.com/v1/chat/completions',{
+  fetch(WORKER_URL,{
     method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.apiKey},
+    headers:{'Content-Type':'application/json'},
     body:JSON.stringify({model:'gpt-4o-mini',messages:messages,max_tokens:400})
   }).then(function(r){return r.json();}).then(function(d){
     var reply=(d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content)||'Error.';
@@ -2237,13 +2228,13 @@ function isMeaningfullyPopulated(d){
   var hasCalories=!!(d.calories&&d.calories>0);
   var hasWater=!!(d.water&&d.water>0);
   var hasGoalWeight=!!(d.goalWeight&&d.goalWeight>0);
-  var hasApiKey=!!(d.apiKey&&d.apiKey.length>10);
+  var hasSetupDone=!!(d.setupDone);
   // REQUIRE actual user activity data — settings alone don't count
   // Score: only real activity (logs, history, daily counts) matters
   var activityScore=logCount+(weightCount*2)+(workoutCount*2)+(hasCalories?2:0)+(hasWater?1:0);
   // Settings bonus — only adds if there's also some activity
   var settingsBonus=(hasGoalWeight&&activityScore>0)?1:0;
-  settingsBonus+=(hasApiKey&&activityScore>0)?1:0;
+  settingsBonus+=(hasSetupDone&&activityScore>0)?1:0;
   var score=activityScore+settingsBonus;
   console.log('[SYNC] populated check: logs='+logCount+' weights='+weightCount+' workouts='+workoutCount+' cal='+hasCalories+' water='+hasWater+' score='+score);
   return score>=2;
