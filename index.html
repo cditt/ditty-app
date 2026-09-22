@@ -3977,7 +3977,7 @@ window.addEventListener('load',function(){
     if(!target)return;
     var body=target.querySelector('.day-body');
     if(!body)return;
-    body.classList.add('open');
+    /* stay collapsed until tap */
     injectRuleStrips();
     wireSetBtns();
     requestAnimationFrame(function(){
@@ -4011,7 +4011,7 @@ window.addEventListener('load',function(){
   if(typeof _origSwitchTab2==='function'&&!_origSwitchTab2._gymHooked){
     window.switchTab=function(name,btn){
       _origSwitchTab2.call(this,name,btn);
-      if(name==='workouts')setTimeout(openToday,350);
+      if(name==='workouts')setTimeout(function(){injectRuleStrips();wireSetBtns();},350);
     };
     window.switchTab._gymHooked=true;
   }

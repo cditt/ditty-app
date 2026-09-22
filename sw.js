@@ -1,4 +1,4 @@
-var CACHE_NAME = 'ditty-v20';
+var CACHE_NAME = 'ditty-v21';
 var URLS_TO_CACHE = [
   '/ditty-app/',
   '/ditty-app/index.html',
