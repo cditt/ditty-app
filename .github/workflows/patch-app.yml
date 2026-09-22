@@ -8,24 +8,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Cream notes unless missed
+      - name: Change rest to 45 seconds
         run: |
           python3 << 'PY'
           from pathlib import Path
           p = Path('index.html')
           t = p.read_text()
-          old = "    if(day.notes&&!day.rest){\n      html+='<div style=\"font-family:\\'Courier Prime\\',monospace;font-size:9px;color:#7a1010;padding:6px 12px;background:#fdf0f0;border-bottom:1px solid #d9c484;letter-spacing:0.5px;\">&#9888; '+day.notes+'</div>';\n    }"
-          new = "    if(day.notes&&!day.rest){\n      var missed=!wasCompleted&&isPast;\n      var noteBg=missed?'#fdf0f0':'#f7ecd0';\n      var noteColor=missed?'#7a1010':'#7a6040';\n      html+='<div style=\"font-family:\\'Courier Prime\\',monospace;font-size:9px;color:'+noteColor+';padding:6px 12px;background:'+noteBg+';border-bottom:1px solid #d9c484;letter-spacing:0.5px;\">&#9888; '+day.notes+'</div>';\n    }"
-          if old not in t:
-              raise SystemExit('notes strip missing')
-          t = t.replace(old, new, 1)
+          if 'var REST_DURATION=90;' not in t:
+              raise SystemExit('REST_DURATION missing')
+          t = t.replace('var REST_DURATION=90;// seconds — standard rest between sets', 'var REST_DURATION=45;// seconds — rest between sets', 1)
+          t = t.replace("notes:'90 sec rest on compounds, 60 sec on accessories.'", "notes:'45 sec rest on compounds, 60 sec on accessories.'", 1)
+          p.write_text(t)
           sw = Path('sw.js')
           swt = sw.read_text()
-          for a,b in [('ditty-v9','ditty-v10'),('ditty-v8','ditty-v10'),('ditty-v7','ditty-v10')]:
+          for a,b in [('ditty-v10','ditty-v11'),('ditty-v9','ditty-v11'),('ditty-v8','ditty-v11')]:
               if a in swt:
                   swt = swt.replace(a,b); break
           sw.write_text(swt)
-          p.write_text(t)
           print('patched ok')
           PY
       - name: Commit and push
@@ -34,5 +33,5 @@ jobs:
           git config user.email "43458916+cditt@users.noreply.github.com"
           git add index.html sw.js
           if git diff --cached --quiet; then echo no change; exit 0; fi
-          git commit -m "Cream warning strip unless the day was missed"
+          git commit -m "Change rest timer from 90s to 45s"
           git push
