@@ -3582,10 +3582,26 @@ function renderWorkoutProgram(prog,autoExpand){
     var isPast=d<todayDow;
     var bgStyle='';
     var wasCompleted=false;
-    if(!day.rest&&S.workoutHistory){
-      for(var h=0;h<S.workoutHistory.length;h++){
-        var sess=S.workoutHistory[h];
-        if(sess.date===dayStr&&sess.type===day.type){wasCompleted=true;break;}
+    if(!day.rest){
+      if(S.workoutHistory){
+        var todayStr=new Date().toLocaleDateString();
+        for(var h=0;h<S.workoutHistory.length;h++){
+          var sess=S.workoutHistory[h];
+          if(sess.type!==day.type)continue;
+          if(sess.date===dayStr||(isToday&&sess.date===todayStr)){wasCompleted=true;break;}
+        }
+      }
+      if(!wasCompleted){
+        var allSetsDone=true,anySet=false;
+        for(var e0=0;e0<day.exercises.length;e0++){
+          var ex0=day.exercises[e0];
+          for(var s0=0;s0<ex0.sets;s0++){
+            anySet=true;
+            var k0=prog+'-'+d+'-'+e0+'-'+s0;
+            if(!(workoutSets[k0]&&workoutSets[k0].done))allSetsDone=false;
+          }
+        }
+        if(anySet&&allSetsDone)wasCompleted=true;
       }
     }
     if(wasCompleted){bgStyle='background:#e8f5e8;border-color:#2a7a2a;';}
