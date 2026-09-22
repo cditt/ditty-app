@@ -3654,10 +3654,11 @@ function renderWorkoutProgram(prog,autoExpand){
           }else{
             // Weight input with last session ghost + suggestion
             html+='<div style="position:relative;flex:1;">';
+            var showWeight=curWeight||suggested||'';
             if(suggested){
-              html+='<div style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#1a3a6a;margin-bottom:2px;cursor:pointer;" onclick="document.getElementById(\'w-'+key+'\').value='+suggested+';setSetWeight(\''+key+'\',\''+prog+'\','+d+','+suggested+')">&#8593; Try '+suggested+'lb (+2.5 from last)</div>';
+              html+='<div style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#1a3a6a;margin-bottom:2px;">sug '+suggested+' · last '+lastWeight+'</div>';
             }
-            html+='<input type="number" id="w-'+key+'" value="'+curWeight+'" placeholder="'+(lastWeight?lastWeight+' last':' lbs')+'" style="width:100%;margin-bottom:0;padding:8px;font-size:15px;background:'+(done?'#d4ecd4':'#fdf6e0')+'" onchange="setSetWeight(\''+key+'\',\''+prog+'\','+d+',this.value)">';
+            html+='<input type="number" id="w-'+key+'" value="'+showWeight+'" placeholder="'+(lastWeight?('last '+lastWeight):'lbs')+'" style="width:100%;margin-bottom:0;padding:8px;font-size:15px;background:'+(done?'#d4ecd4':'#fdf6e0')+'" onchange="setSetWeight(\''+key+'\',\''+prog+'\','+d+',this.value)">';
             if(lastWeight&&!suggested)html+='<span style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-family:\'Courier Prime\',monospace;font-size:8px;color:#aaa;">prev:'+lastWeight+'</span>';
             html+='</div>';
             html+='<span style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#7a6040;">lb</span>';
