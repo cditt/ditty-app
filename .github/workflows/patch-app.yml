@@ -8,37 +8,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Collapse workout days
+      - name: Refresh button
         run: |
           python3 << 'PY'
           from pathlib import Path
           p = Path('index.html')
           t = p.read_text()
-          old1 = "var bodyOpen=(isToday||isAlreadyOpen)?' open':'';"
-          new1 = "var bodyOpen=isAlreadyOpen?' open':'';"
-          if old1 not in t:
-              if new1 in t:
-                  print('bodyOpen already collapsed')
-              else:
-                  raise SystemExit('bodyOpen missing')
+          old = '<span id="force-sync-btn" onclick="handleSyncBtn()" style="cursor:pointer;color:#f0dca8;text-decoration:underline;font-size:9px;">sync</span>'
+          new = old + ' &middot; <span id="force-reload-btn" onclick="hardReload()" style="cursor:pointer;color:#f0dca8;text-decoration:underline;font-size:9px;">refresh</span>'
+          if 'force-reload-btn' in t:
+              print('btn already there')
+          elif old not in t:
+              raise SystemExit('sync btn missing')
           else:
-              t = t.replace(old1, new1, 1)
-              print('bodyOpen fixed')
-
-          old2 = "  for(var j=0;j<dayBodies.length;j++)dayBodies[j].classList.remove('open');\n  var target=dayBodies[todayIdx];\n  if(target){\n    target.classList.add('open');"
-          new2 = "  for(var j=0;j<dayBodies.length;j++)dayBodies[j].classList.remove('open');\n  var target=dayBodies[todayIdx];\n  if(false && target){\n    target.classList.add('open');"
-          if old2 not in t:
-              if 'if(false && target)' in t:
-                  print('force-open already disabled')
-              else:
-                  raise SystemExit('force-open block missing')
-          else:
-              t = t.replace(old2, new2, 1)
-              print('force-open disabled')
-
+              t = t.replace(old, new, 1)
+              print('btn added')
+          fn = "function hardReload(){try{if(navigator.serviceWorker){navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.update();}));}).then(function(){location.reload();}).catch(function(){location.reload();});return;}}catch(e){}location.reload();}\n"
+          if 'function hardReload(' not in t:
+              if 'function handleSyncBtn(){' not in t:
+                  raise SystemExit('handleSyncBtn missing')
+              t = t.replace('function handleSyncBtn(){', fn + 'function handleSyncBtn(){', 1)
           p.write_text(t)
           sw = Path('sw.js').read_text()
-          for a,b in [('ditty-v18','ditty-v19'),('ditty-v17','ditty-v19'),('ditty-v16','ditty-v19')]:
+          for a,b in [('ditty-v19','ditty-v20'),('ditty-v18','ditty-v20'),('ditty-v17','ditty-v20')]:
               if a in sw:
                   sw = sw.replace(a,b); break
           Path('sw.js').write_text(sw)
@@ -50,5 +42,5 @@ jobs:
           git config user.email "43458916+cditt@users.noreply.github.com"
           git add index.html sw.js
           if git diff --cached --quiet; then echo no change; exit 0; fi
-          git commit -m "Start workout day cards collapsed; tap header to open"
+          git commit -m "Add header refresh button next to sync"
           git push
