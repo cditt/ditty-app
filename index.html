@@ -476,7 +476,7 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
     <div class="header-inner">
       <div>
         <div class="header-title">Ditty's Fat Journey</div>
-        <div class="header-sub">11am &ndash; 7pm &middot; IF Window &middot; <span id="sync-status"></span> <span id="force-sync-btn" onclick="handleSyncBtn()" style="cursor:pointer;color:#f0dca8;text-decoration:underline;font-size:9px;">sync</span></div>
+        <div class="header-sub">11am &ndash; 7pm &middot; IF Window &middot; <span id="sync-status"></span> <span id="force-sync-btn" onclick="handleSyncBtn()" style="cursor:pointer;color:#f0dca8;text-decoration:underline;font-size:9px;">sync</span> &middot; <span id="force-reload-btn" onclick="hardReload()" style="cursor:pointer;color:#f0dca8;text-decoration:underline;font-size:9px;">refresh</span></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div id="if-pill" class="if-pill if-closed">Closed</div>
@@ -2152,6 +2152,7 @@ function switchDeviceRole(){
   closeSettings();
 }
 
+function hardReload(){try{if(navigator.serviceWorker){navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.update();}));}).then(function(){location.reload();}).catch(function(){location.reload();});return;}}catch(e){}location.reload();}
 function handleSyncBtn(){
   var role=localStorage.getItem('deviceRole')||'primary';
   if(role==='mirror'){
