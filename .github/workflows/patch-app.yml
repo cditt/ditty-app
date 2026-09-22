@@ -8,62 +8,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Protect food and backups
+      - name: Collapse workout days
         run: |
           python3 << 'PY'
           from pathlib import Path
           p = Path('index.html')
           t = p.read_text()
-
-          old_daily = "    if(localStorage.getItem(key))return;\n    localStorage.setItem(key,JSON.stringify(S));"
-          new_daily = "    var prev=localStorage.getItem(key);\n    if(prev){\n      try{\n        var oldS=JSON.parse(prev);\n        if((oldS.calories||0)>=(S.calories||0) && ((oldS.log&&oldS.log.length)||0)>=((S.log&&S.log.length)||0))return;\n      }catch(e){}\n    }\n    localStorage.setItem(key,JSON.stringify(S));"
-          if old_daily not in t:
-              raise SystemExit('daily backup anchor missing')
-          t = t.replace(old_daily, new_daily, 1)
-
-          old_keys = "if(k&&k.indexOf('dittyBackup_')===0)keys.push(k);"
-          new_keys = "if(k&&(k.indexOf('dittyBackup_')===0||k.indexOf('dittyEmergency_')===0))keys.push(k);"
-          if t.count(old_keys) < 1:
-              raise SystemExit('backup key filter missing')
-          t = t.replace(old_keys, new_keys)
-
-          old_rule = "      if(remoteTime<=localTime){syncLock=false;console.log('[SYNC] Both populated, remote not newer \u2014 skip');return;}\n      console.log('[SYNC] Both populated, remote newer \u2014 pulling');"
-          # file may use unicode dash or ascii
-          old_rule_ascii = "      if(remoteTime<=localTime){syncLock=false;console.log('[SYNC] Both populated, remote not newer \xe2\x80\x94 skip');return;}"
-          guard = "      if(remoteTime<=localTime){syncLock=false;console.log('[SYNC] Both populated, remote not newer \u2014 skip');return;}\n      if((S.calories||0)>(remote.calories||0) || ((S.log&&S.log.length)||0)>((remote.log&&remote.log.length)||0)){\n        console.log('[SYNC] PULL BLOCKED \u2014 local food richer than remote');\n        syncLock=false;return;\n      }\n      console.log('[SYNC] Both populated, remote newer \u2014 pulling');"
-          if 'PULL BLOCKED \u2014 local food richer' not in t and 'PULL BLOCKED' not in t.split('RULE 2')[1][:500]:
-              if "remote not newer" not in t:
-                  raise SystemExit('rule2 missing')
-              # replace just the skip/pull pair using a short unique line
-              needle = "console.log('[SYNC] Both populated, remote newer \u2014 pulling');"
-              if needle not in t:
-                  needle = "console.log('[SYNC] Both populated, remote newer"
-                  idx = t.find(needle)
-                  if idx < 0:
-                      raise SystemExit('pulling log missing')
-                  # find full statement
-                  end = t.find(';', idx) + 1
-                  full = t[t.rfind('\n', 0, idx)+1:end]
-                  insert = "if((S.calories||0)>(remote.calories||0)||((S.log&&S.log.length)||0)>((remote.log&&remote.log.length)||0)){console.log('[SYNC] PULL BLOCKED local food richer');syncLock=false;return;}\n      " + full
-                  t = t.replace(full, insert, 1)
+          old1 = "var bodyOpen=(isToday||isAlreadyOpen)?' open':'';"
+          new1 = "var bodyOpen=isAlreadyOpen?' open':'';"
+          if old1 not in t:
+              if new1 in t:
+                  print('bodyOpen already collapsed')
               else:
-                  t = t.replace(needle, "if((S.calories||0)>(remote.calories||0)||((S.log&&S.log.length)||0)>((remote.log&&remote.log.length)||0)){console.log('[SYNC] PULL BLOCKED local food richer');syncLock=false;return;}\n      " + needle, 1)
+                  raise SystemExit('bodyOpen missing')
+          else:
+              t = t.replace(old1, new1, 1)
+              print('bodyOpen fixed')
 
-          # Hard color fills so icons stay colored even if CSS cache is stale
-          t = t.replace('<path fill="currentColor" d="M12 3.2L3.2 11h2.3v9.3h5.1v-6.2h2.8v6.2h5.1V11h2.3L12 3.2z"/>', '<path fill="#f3d58a" d="M12 3.2L3.2 11h2.3v9.3h5.1v-6.2h2.8v6.2h5.1V11h2.3L12 3.2z"/>', 1)
-          t = t.replace('fill="currentColor" d="M16.2 6.4c-1 .2', 'fill="#e24a3a" d="M16.2 6.4c-1 .2', 1)
-          t = t.replace('fill="currentColor" d="M12 2.8s7 8.2 7 12.4', 'fill="#4aa8e8" d="M12 2.8s7 8.2 7 12.4', 1)
-          t = t.replace('fill="currentColor" d="M7.2 6.2a4.8 4.8 0 0 1 9.6 0', 'fill="#e0b84a" d="M7.2 6.2a4.8 4.8 0 0 1 9.6 0', 1)
-          t = t.replace('fill="currentColor" d="M3.2 8.4h2.3v7.2H3.2z', 'fill="#e06a28" d="M3.2 8.4h2.3v7.2H3.2z', 1)
-          t = t.replace('fill="currentColor" d="M7.3 9.1a3.9 3.9 0 0 0 0 5.8', 'fill="#c56ad6" d="M7.3 9.1a3.9 3.9 0 0 0 0 5.8', 1)
+          old2 = "  for(var j=0;j<dayBodies.length;j++)dayBodies[j].classList.remove('open');\n  var target=dayBodies[todayIdx];\n  if(target){\n    target.classList.add('open');"
+          new2 = "  for(var j=0;j<dayBodies.length;j++)dayBodies[j].classList.remove('open');\n  var target=dayBodies[todayIdx];\n  if(false && target){\n    target.classList.add('open');"
+          if old2 not in t:
+              if 'if(false && target)' in t:
+                  print('force-open already disabled')
+              else:
+                  raise SystemExit('force-open block missing')
+          else:
+              t = t.replace(old2, new2, 1)
+              print('force-open disabled')
 
           p.write_text(t)
           sw = Path('sw.js').read_text()
-          for a,b in [('ditty-v17','ditty-v18'),('ditty-v16','ditty-v18'),('ditty-v15','ditty-v18')]:
+          for a,b in [('ditty-v18','ditty-v19'),('ditty-v17','ditty-v19'),('ditty-v16','ditty-v19')]:
               if a in sw:
                   sw = sw.replace(a,b); break
           Path('sw.js').write_text(sw)
-          print('patched')
+          print('ok')
           PY
       - name: Commit and push
         run: |
@@ -71,5 +50,5 @@ jobs:
           git config user.email "43458916+cditt@users.noreply.github.com"
           git add index.html sw.js
           if git diff --cached --quiet; then echo no change; exit 0; fi
-          git commit -m "Protect richer food logs and list emergency backups"
+          git commit -m "Start workout day cards collapsed; tap header to open"
           git push
