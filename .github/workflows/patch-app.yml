@@ -8,38 +8,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Word and gym card
+      - name: Remove Word + Gym card
         run: |
           python3 << 'PY'
           from pathlib import Path
           p = Path('index.html')
           t = p.read_text()
-          if 'id="word-gym-card"' in t:
-              print('already patched')
-          else:
-              old = '''        <button onclick="switchToTab('pills')" style="width:100%;margin-top:10px;background:none;border:1px dashed #7a6040;color:#7a6040;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:2px;padding:6px;cursor:pointer;text-transform:uppercase;">Manage All Meds &#9658;</button>\n      </div>\n      <!-- MOTIVATION CARD -->'''
-              new = '''        <button onclick="switchToTab('pills')" style="width:100%;margin-top:10px;background:none;border:1px dashed #7a6040;color:#7a6040;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:2px;padding:6px;cursor:pointer;text-transform:uppercase;">Manage All Meds &#9658;</button>\n      </div>\n      <!-- WORD + GYM LEAVE -->\n      <div class="card" id="word-gym-card" style="background:#1a1408;border-color:#8a6a28;">\n        <div style="font-family:'Special Elite',cursive;font-size:10px;letter-spacing:3px;color:#d4b060;text-transform:uppercase;margin-bottom:8px;">Word + Work Gym</div>\n        <div style="font-family:'Courier Prime',monospace;font-size:11px;color:#c8b080;line-height:1.5;margin-bottom:10px;">Leave by 5:50 for a 6:30 start. 40 min drive. Start in the Word.</div>\n        <div style="display:flex;gap:6px;margin-bottom:8px;">\n          <button onclick="toggleWordDone()" id="btn-word-done" style="flex:1;background:#2a2410;color:#f0dca8;border:1px solid #8a6a28;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:1px;padding:8px;cursor:pointer;text-transform:uppercase;">Word today</button>\n          <button onclick="toggleGymLeft()" id="btn-gym-left" style="flex:1;background:#2a2410;color:#f0dca8;border:1px solid #8a6a28;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:1px;padding:8px;cursor:pointer;text-transform:uppercase;">Left for gym</button>\n        </div>\n        <div style="display:flex;gap:6px;">\n          <a href="https://www.bible.com/" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;background:none;border:1px dashed #7a6040;color:#c8b080;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:1px;padding:7px;text-transform:uppercase;">YouVersion</a>\n          <a href="https://throughtheword.org/" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;background:none;border:1px dashed #7a6040;color:#c8b080;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:1px;padding:7px;text-transform:uppercase;">Through the Word</a>\n        </div>\n      </div>\n      <!-- MOTIVATION CARD -->'''
-              if old not in t:
-                  raise SystemExit('anchor not found for word-gym card')
-              t = t.replace(old, new, 1)
-              reset_old = 'if(S.pills){for(var i=0;i<S.pills.length;i++){S.pills[i].taken=false;}}'
-              reset_new = 'if(S.pills){for(var i=0;i<S.pills.length;i++){S.pills[i].taken=false;}}\n  S.wordDone=false;S.gymLeft=false;'
-              if reset_old not in t:
-                  raise SystemExit('reset anchor not found')
-              t = t.replace(reset_old, reset_new, 1)
-              fns = '''\nfunction toggleWordDone(){S.wordDone=!S.wordDone;save();renderWordGym();}\nfunction toggleGymLeft(){S.gymLeft=!S.gymLeft;save();renderWordGym();}\nfunction renderWordGym(){\n  var w=document.getElementById('btn-word-done');\n  var g=document.getElementById('btn-gym-left');\n  if(!w||!g)return;\n  w.textContent=S.wordDone?'Word done':'Word today';\n  g.textContent=S.gymLeft?'At the gym':'Left for gym';\n  w.style.background=S.wordDone?'#2a5a2a':'#2a2410';\n  g.style.background=S.gymLeft?'#2a5a2a':'#2a2410';\n}\n'''
-              if 'function toggleWordDone()' not in t:
-                  t = t.replace('function render(){', fns + 'function render(){', 1)
-              if 'renderWordGym();' not in t.split('function render(){',1)[1][:400]:
-                  t = t.replace('function render(){\n  var net=S.calories', 'function render(){\n  renderWordGym();\n  var net=S.calories', 1)
-              p.write_text(t)
-              print('index patched')
+          start = t.find('      <!-- WORD + GYM LEAVE -->')
+          end = t.find('      <!-- MOTIVATION CARD -->')
+          if start < 0 or end < 0 or end <= start:
+              raise SystemExit('card markers missing start=%s end=%s' % (start, end))
+          t = t[:start] + t[end:]
+          t = t.replace('  S.wordDone=false;S.gymLeft=false;\n', '')
+          t = t.replace('  renderWordGym();\n', '')
+          fn_start = t.find('function toggleWordDone()')
+          fn_end = t.find('function render(){')
+          if fn_start >= 0 and fn_end > fn_start:
+              t = t[:fn_start] + t[fn_end:]
+          if 'word-gym-card' in t or 'toggleWordDone' in t:
+              raise SystemExit('removal incomplete')
+          p.write_text(t)
           sw = Path('sw.js').read_text()
-          for a,b in [('ditty-v12','ditty-v13'),('ditty-v11','ditty-v13'),('ditty-v10','ditty-v13')]:
+          for a,b in [('ditty-v13','ditty-v14'),('ditty-v12','ditty-v14'),('ditty-v11','ditty-v14')]:
               if a in sw:
                   sw = sw.replace(a,b); break
           Path('sw.js').write_text(sw)
-          print('cache', 'ditty-v13' if 'ditty-v13' in sw else 'unchanged')
+          print('removed ok')
           PY
       - name: Commit and push
         run: |
@@ -47,5 +41,5 @@ jobs:
           git config user.email "43458916+cditt@users.noreply.github.com"
           git add index.html sw.js
           if git diff --cached --quiet; then echo no change; exit 0; fi
-          git commit -m "Add Word + work gym leave card"
+          git commit -m "Remove unsolicited Word + Work Gym card"
           git push
