@@ -8,20 +8,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Green card when sets are done
+      - name: Cream notes unless missed
         run: |
           python3 << 'PY'
           from pathlib import Path
           p = Path('index.html')
           t = p.read_text()
-          old = """    var wasCompleted=false;\n    if(!day.rest&&S.workoutHistory){\n      for(var h=0;h<S.workoutHistory.length;h++){\n        var sess=S.workoutHistory[h];\n        if(sess.date===dayStr&&sess.type===day.type){wasCompleted=true;break;}\n      }\n    }"""
-          new = """    var wasCompleted=false;\n    if(!day.rest){\n      if(S.workoutHistory){\n        var todayStr=new Date().toLocaleDateString();\n        for(var h=0;h<S.workoutHistory.length;h++){\n          var sess=S.workoutHistory[h];\n          if(sess.type!==day.type)continue;\n          if(sess.date===dayStr||(isToday&&sess.date===todayStr)){wasCompleted=true;break;}\n        }\n      }\n      if(!wasCompleted){\n        var allSetsDone=true,anySet=false;\n        for(var e0=0;e0<day.exercises.length;e0++){\n          var ex0=day.exercises[e0];\n          for(var s0=0;s0<ex0.sets;s0++){\n            anySet=true;\n            var k0=prog+'-'+d+'-'+e0+'-'+s0;\n            if(!(workoutSets[k0]&&workoutSets[k0].done))allSetsDone=false;\n          }\n        }\n        if(anySet&&allSetsDone)wasCompleted=true;\n      }\n    }"""
+          old = "    if(day.notes&&!day.rest){\n      html+='<div style=\"font-family:\\'Courier Prime\\',monospace;font-size:9px;color:#7a1010;padding:6px 12px;background:#fdf0f0;border-bottom:1px solid #d9c484;letter-spacing:0.5px;\">&#9888; '+day.notes+'</div>';\n    }"
+          new = "    if(day.notes&&!day.rest){\n      var missed=!wasCompleted&&isPast;\n      var noteBg=missed?'#fdf0f0':'#f7ecd0';\n      var noteColor=missed?'#7a1010':'#7a6040';\n      html+='<div style=\"font-family:\\'Courier Prime\\',monospace;font-size:9px;color:'+noteColor+';padding:6px 12px;background:'+noteBg+';border-bottom:1px solid #d9c484;letter-spacing:0.5px;\">&#9888; '+day.notes+'</div>';\n    }"
           if old not in t:
-              raise SystemExit('wasCompleted block missing')
+              raise SystemExit('notes strip missing')
           t = t.replace(old, new, 1)
           sw = Path('sw.js')
           swt = sw.read_text()
-          for a,b in [('ditty-v8','ditty-v9'),('ditty-v7','ditty-v9'),('ditty-v6','ditty-v9')]:
+          for a,b in [('ditty-v9','ditty-v10'),('ditty-v8','ditty-v10'),('ditty-v7','ditty-v10')]:
               if a in swt:
                   swt = swt.replace(a,b); break
           sw.write_text(swt)
@@ -34,5 +34,5 @@ jobs:
           git config user.email "43458916+cditt@users.noreply.github.com"
           git add index.html sw.js
           if git diff --cached --quiet; then echo no change; exit 0; fi
-          git commit -m "Green the day card when all sets are done"
+          git commit -m "Cream warning strip unless the day was missed"
           git push
