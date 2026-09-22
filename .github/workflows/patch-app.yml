@@ -8,23 +8,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Green completed day cards
+      - name: Green card when sets are done
         run: |
           python3 << 'PY'
           from pathlib import Path
           p = Path('index.html')
           t = p.read_text()
-          old = """    if(isToday){bgStyle='background:#fff8e8;';}\n    else if(!day.rest&&isPast){\n      var wasCompleted=false;\n      if(S.workoutHistory){for(var h=0;h<S.workoutHistory.length;h++){var sess=S.workoutHistory[h];if(sess.date===dayStr&&sess.type===day.type){wasCompleted=true;break;}}}\n      bgStyle=wasCompleted?'background:#e8f5e8;border-color:#2a7a2a;':'background:#fde8e8;border-color:#b81c1c;';\n    }\n    html+='<div class="day-card" style="'+bgStyle+'">';\n    html+='<div class="day-header" onclick="toggleDay(\\''+prog+'-'+d+'\\')">';\n    var dayPrefix=isToday?'&#9654; ':'';\n    if(!day.rest&&isPast){var wasDone=bgStyle.indexOf('#e8f5e8')!==-1;dayPrefix=wasDone?'&#10003; ':'&#10005; ';}\n    html+='<div><div class="day-name" style="'+(isToday?'color:#b81c1c;':'')+'">'+dayPrefix+day.name+'</div>';"""
-          new = """    var wasCompleted=false;\n    if(!day.rest&&S.workoutHistory){\n      for(var h=0;h<S.workoutHistory.length;h++){\n        var sess=S.workoutHistory[h];\n        if(sess.date===dayStr&&sess.type===day.type){wasCompleted=true;break;}\n      }\n    }\n    if(wasCompleted){bgStyle='background:#e8f5e8;border-color:#2a7a2a;';}\n    else if(isToday){bgStyle='background:#fff8e8;';}\n    else if(!day.rest&&isPast){bgStyle='background:#fde8e8;border-color:#b81c1c;';}\n    html+='<div class="day-card" style="'+bgStyle+'">';\n    html+='<div class="day-header" onclick="toggleDay(\\''+prog+'-'+d+'\\')">';\n    var dayPrefix='';\n    if(wasCompleted)dayPrefix='&#10003; ';\n    else if(isToday)dayPrefix='&#9654; ';\n    else if(!day.rest&&isPast)dayPrefix='&#10005; ';\n    html+='<div><div class="day-name" style="'+(wasCompleted?'color:#2a7a2a;':(isToday?'color:#b81c1c;':''))+'">'+dayPrefix+day.name+'</div>';"""
+          old = """    var wasCompleted=false;\n    if(!day.rest&&S.workoutHistory){\n      for(var h=0;h<S.workoutHistory.length;h++){\n        var sess=S.workoutHistory[h];\n        if(sess.date===dayStr&&sess.type===day.type){wasCompleted=true;break;}\n      }\n    }"""
+          new = """    var wasCompleted=false;\n    if(!day.rest){\n      if(S.workoutHistory){\n        var todayStr=new Date().toLocaleDateString();\n        for(var h=0;h<S.workoutHistory.length;h++){\n          var sess=S.workoutHistory[h];\n          if(sess.type!==day.type)continue;\n          if(sess.date===dayStr||(isToday&&sess.date===todayStr)){wasCompleted=true;break;}\n        }\n      }\n      if(!wasCompleted){\n        var allSetsDone=true,anySet=false;\n        for(var e0=0;e0<day.exercises.length;e0++){\n          var ex0=day.exercises[e0];\n          for(var s0=0;s0<ex0.sets;s0++){\n            anySet=true;\n            var k0=prog+'-'+d+'-'+e0+'-'+s0;\n            if(!(workoutSets[k0]&&workoutSets[k0].done))allSetsDone=false;\n          }\n        }\n        if(anySet&&allSetsDone)wasCompleted=true;\n      }\n    }"""
           if old not in t:
-              raise SystemExit('day card pattern missing')
+              raise SystemExit('wasCompleted block missing')
           t = t.replace(old, new, 1)
           sw = Path('sw.js')
           swt = sw.read_text()
-          for a,b in [('ditty-v7','ditty-v8'),('ditty-v6','ditty-v8')]:
+          for a,b in [('ditty-v8','ditty-v9'),('ditty-v7','ditty-v9'),('ditty-v6','ditty-v9')]:
               if a in swt:
-                  swt = swt.replace(a,b)
-                  break
+                  swt = swt.replace(a,b); break
           sw.write_text(swt)
           p.write_text(t)
           print('patched ok')
@@ -35,5 +34,5 @@ jobs:
           git config user.email "43458916+cditt@users.noreply.github.com"
           git add index.html sw.js
           if git diff --cached --quiet; then echo no change; exit 0; fi
-          git commit -m "Turn completed workout day cards green"
+          git commit -m "Green the day card when all sets are done"
           git push
