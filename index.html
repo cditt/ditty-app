@@ -545,6 +545,19 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
         <div class="pill-widget-row" id="pill-widget"></div>
         <button onclick="switchToTab('pills')" style="width:100%;margin-top:10px;background:none;border:1px dashed #7a6040;color:#7a6040;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:2px;padding:6px;cursor:pointer;text-transform:uppercase;">Manage All Meds &#9658;</button>
       </div>
+      <!-- WORD + GYM LEAVE -->
+      <div class="card" id="word-gym-card" style="background:#1a1408;border-color:#8a6a28;">
+        <div style="font-family:'Special Elite',cursive;font-size:10px;letter-spacing:3px;color:#d4b060;text-transform:uppercase;margin-bottom:8px;">Word + Work Gym</div>
+        <div style="font-family:'Courier Prime',monospace;font-size:11px;color:#c8b080;line-height:1.5;margin-bottom:10px;">Leave by 5:50 for a 6:30 start. 40 min drive. Start in the Word.</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <button onclick="toggleWordDone()" id="btn-word-done" style="flex:1;background:#2a2410;color:#f0dca8;border:1px solid #8a6a28;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:1px;padding:8px;cursor:pointer;text-transform:uppercase;">Word today</button>
+          <button onclick="toggleGymLeft()" id="btn-gym-left" style="flex:1;background:#2a2410;color:#f0dca8;border:1px solid #8a6a28;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:1px;padding:8px;cursor:pointer;text-transform:uppercase;">Left for gym</button>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <a href="https://www.bible.com/" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;background:none;border:1px dashed #7a6040;color:#c8b080;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:1px;padding:7px;text-transform:uppercase;">YouVersion</a>
+          <a href="https://throughtheword.org/" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;background:none;border:1px dashed #7a6040;color:#c8b080;font-family:'Special Elite',cursive;font-size:10px;letter-spacing:1px;padding:7px;text-transform:uppercase;">Through the Word</a>
+        </div>
+      </div>
       <!-- MOTIVATION CARD -->
       <div class="card" id="motivation-card" style="background:#1a0d00;border-color:#b81c1c;">
         <div style="font-family:'Special Elite',cursive;font-size:9px;letter-spacing:3px;color:#e02020;text-transform:uppercase;margin-bottom:8px;">Coach Says</div>
@@ -1054,6 +1067,7 @@ function checkReset(){
   S.calories=0;S.protein=0;S.carbs=0;S.fat=0;S.burned=0;S.water=0;S.steps=0;S.log=[];
   S.lastReset=today;
   if(S.pills){for(var i=0;i<S.pills.length;i++){S.pills[i].taken=false;}}
+  S.wordDone=false;S.gymLeft=false;
   // Save LOCALLY ONLY — never push reset state to cloud
   // The first real data log of the new day will push
   try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
@@ -1159,7 +1173,20 @@ function updateIF(){
   }
 }
 
+
+function toggleWordDone(){S.wordDone=!S.wordDone;save();renderWordGym();}
+function toggleGymLeft(){S.gymLeft=!S.gymLeft;save();renderWordGym();}
+function renderWordGym(){
+  var w=document.getElementById('btn-word-done');
+  var g=document.getElementById('btn-gym-left');
+  if(!w||!g)return;
+  w.textContent=S.wordDone?'Word done':'Word today';
+  g.textContent=S.gymLeft?'At the gym':'Left for gym';
+  w.style.background=S.wordDone?'#2a5a2a':'#2a2410';
+  g.style.background=S.gymLeft?'#2a5a2a':'#2a2410';
+}
 function render(){
+  renderWordGym();
   var net=S.calories,rem=CAL_GOAL-S.calories,pct=Math.min((S.calories/CAL_GOAL)*100,100);
   var ce=document.getElementById('dash-cals');ce.textContent=S.calories;ce.className='cal-number'+(S.calories>CAL_GOAL?' over':'');
   var bar=document.getElementById('cal-bar');bar.style.width=pct+'%';bar.className='progress-fill'+(S.calories>CAL_GOAL?' over':'');
