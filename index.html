@@ -799,6 +799,7 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
             <button onclick="selectActivity('Golf')" id="act-Golf" class="act-btn">&#9917; Golf</button>
             <button onclick="selectActivity('Disc Golf')" id="act-Disc Golf" class="act-btn">&#127943; Disc Golf</button>
             <button onclick="selectActivity('Walking')" id="act-Walking" class="act-btn">&#127939; Walking</button>
+            <button onclick="selectActivity('Treadmill')" id="act-Treadmill" class="act-btn">Treadmill</button>
             <button onclick="selectActivity('Cycling')" id="act-Cycling" class="act-btn">&#128692; Cycling</button>
             <button onclick="selectActivity('Swimming')" id="act-Swimming" class="act-btn">&#127946; Swimming</button>
           </div>
@@ -806,6 +807,8 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
           <input type="text" id="custom-activity-name" placeholder="e.g. Kayaking" style="margin-bottom:8px;">
           <label>Duration (minutes)</label>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;">
+            <button onclick="selectDuration(10)" id="dur-10" class="dur-btn">10</button>
+            <button onclick="selectDuration(15)" id="dur-15" class="dur-btn">15</button>
             <button onclick="selectDuration(30)" id="dur-30" class="dur-btn">30</button>
             <button onclick="selectDuration(45)" id="dur-45" class="dur-btn">45</button>
             <button onclick="selectDuration(60)" id="dur-60" class="dur-btn">60</button>
@@ -908,7 +911,9 @@ var DEFAULT_PILLS=[
   {id:4,name:'Creatine',dose:'5g',taken:false,daily:true,injDay:null},
   {id:5,name:'Alpha Brain',dose:'',taken:false,daily:true,injDay:null},
   {id:6,name:'Testosterone',dose:'200mg/ml 1ml',taken:false,daily:false,injDay:0},
-  {id:7,name:'Retatrutide',dose:'',taken:false,daily:false,injDay:0}
+  {id:7,name:'Retatrutide',dose:'',taken:false,daily:false,injDay:0},
+  {id:8,name:'Aged Garlic AM',dose:'1200mg',taken:false,daily:true,injDay:null},
+  {id:9,name:'Aged Garlic PM',dose:'1200mg',taken:false,daily:true,injDay:null}
 ];
 
 /* ── CLOUDFLARE WORKER ENDPOINTS ── ditty-fatjourney-ai.hddittemore.workers.dev ── */
@@ -1315,7 +1320,9 @@ function ensureRequiredPills(){
     {name:'Creatine',      dose:'5g',           daily:true,  injDay:null},
     {name:'Alpha Brain',   dose:'',             daily:true,  injDay:null},
     {name:'Testosterone',  dose:'200mg/ml 1ml', daily:false, injDay:0},
-    {name:'Retatrutide',   dose:'',             daily:false, injDay:0}
+    {name:'Retatrutide',   dose:'',             daily:false, injDay:0},
+    {name:'Aged Garlic AM',dose:'1200mg',       daily:true,  injDay:null},
+    {name:'Aged Garlic PM',dose:'1200mg',       daily:true,  injDay:null}
   ];
   var maxId=0;
   for(var i=0;i<S.pills.length;i++)if(S.pills[i].id>maxId)maxId=S.pills[i].id;
@@ -3003,7 +3010,7 @@ function startStopwatch(key,targetSecs){
 var selectedActivity='';
 var selectedDuration=0;
 var ACTIVITY_MET={
-  'Hiking':6,'Golf':4,'Disc Golf':4,'Walking':3.5,'Cycling':8,'Swimming':8
+  'Hiking':6,'Golf':4,'Disc Golf':4,'Walking':3.5,'Treadmill':4,'Cycling':8,'Swimming':8
 };
 
 function selectActivity(name){
