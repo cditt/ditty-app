@@ -8,53 +8,61 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Nav icons
+      - name: Bigger nav icons
         run: |
           python3 << 'PY'
           from pathlib import Path
           p = Path('index.html')
           t = p.read_text()
-          old_css = ".nav-icon{font-size:13px;line-height:1;}"
-          new_css = ".nav-icon{font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;width:20px;height:20px;}.nav-icon svg{display:block;width:20px;height:20px;}"
-          if old_css not in t:
+
+          old_btn = ".nav-btn{flex:1;background:none;border:none;padding:8px 1px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:#6b5030;font-family:'Special Elite',cursive;min-height:50px;}"
+          new_btn = ".nav-btn{flex:1;background:none;border:none;padding:8px 2px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:#d7b57a;font-family:'Special Elite',cursive;min-height:58px;}"
+          if old_btn not in t:
+              raise SystemExit('nav-btn css missing')
+          t = t.replace(old_btn, new_btn, 1)
+
+          old_ico = ".nav-icon{font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;width:20px;height:20px;}.nav-icon svg{display:block;width:20px;height:20px;}"
+          new_ico = ".nav-icon{font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;width:26px;height:26px;}.nav-icon svg{display:block;width:26px;height:26px;}"
+          if old_ico not in t:
               raise SystemExit('nav-icon css missing')
-          if 'nav-icon svg' not in t:
-              t = t.replace(old_css, new_css, 1)
+          t = t.replace(old_ico, new_ico, 1)
 
-          def ico(svg):
-              return '<span class="nav-icon">' + svg + '</span>'
+          old_lab = ".nav-label{font-size:6px;letter-spacing:1px;text-transform:uppercase;}"
+          new_lab = ".nav-label{font-size:8px;letter-spacing:1px;text-transform:uppercase;}"
+          if old_lab not in t:
+              raise SystemExit('nav-label css missing')
+          t = t.replace(old_lab, new_lab, 1)
 
-          house = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5L12 4l8 7.5"/><path d="M6.5 10.5V20h11V10.5"/><path d="M10 20v-6h4v6"/></svg>'
-          fork = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16"/><path d="M6 8h4"/><path d="M16.5 5l2 3-4.5 12"/><path d="M15.2 12.5h5"/></svg>'
-          drop = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 7.2 6 11.2A6 6 0 1 1 6 14.2C6 10.2 12 3 12 3z"/></svg>'
-          scale = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/><circle cx="12" cy="15" r="2.2"/><path d="M12 13v-1.5"/></svg>'
-          dumb = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9v6"/><path d="M17 9v6"/><path d="M5 10v4"/><path d="M19 10v4"/><path d="M7 12h10"/><rect x="2.5" y="8.5" width="2.2" height="7" rx="0.6"/><rect x="19.3" y="8.5" width="2.2" height="7" rx="0.6"/></svg>'
-          pill = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8.2" y="3.2" width="7.6" height="17.6" rx="3.8" transform="rotate(45 12 12)"/><path d="M8.2 15.8l7.6-7.6"/></svg>'
+          start = t.find('<button class="nav-btn active" data-tab="home"')
+          end = t.find('</div>', start)
+          if start < 0 or end < 0:
+              raise SystemExit('nav buttons missing')
 
-          pairs = [
-              ('<span class="nav-icon">&#127968;</span><span class="nav-label">Home</span>', ico(house) + '<span class="nav-label">Home</span>'),
-              ('<span class="nav-icon">&#128172;</span><span class="nav-label">Log</span>', ico(fork) + '<span class="nav-label">Food</span>'),
-              ('<span class="nav-icon">&#128167;</span><span class="nav-label">Water</span>', ico(drop) + '<span class="nav-label">Water</span>'),
-              ('<span class="nav-icon">&#9878;&#65039;</span><span class="nav-label">Weight</span>', ico(scale) + '<span class="nav-label">Weight</span>'),
-              ('<span class="nav-icon">&#x1F94A;</span><span class="nav-label">Gym</span>', ico(dumb) + '<span class="nav-label">Gym</span>'),
-              ('<span class="nav-icon">&#128138;</span><span class="nav-label">Pills</span>', ico(pill) + '<span class="nav-label">Pills</span>'),
-          ]
-          for a,b in pairs:
-              if a not in t:
-                  if b in t:
-                      print('already', a[-20:])
-                      continue
-                  raise SystemExit('missing ' + a)
-              t = t.replace(a, b, 1)
-              print('replaced', a[-24:])
+          house = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 3.2L3.2 11h2.3v9.3h5.1v-6.2h2.8v6.2h5.1V11h2.3L12 3.2z"/></svg>'
+          apple = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M16.2 6.4c-1 .2-1.9.8-2.4 1.6-.5-.8-1.4-1.4-2.4-1.6.3-1.4 1.4-2.6 2.8-3 .2 1.5-.2 2.5-.4 3zm.6 2.1c1.9.2 3.6 1.8 3.8 3.8.3 3.2-2.1 7.9-5.6 8.6-1.2.3-2.1-.3-3-.3s-1.8.6-3 .3C5.5 20.2 3.1 15.5 3.4 12.3c.2-2 1.9-3.6 3.8-3.8 1.2-.1 2.3.4 3 .4.7 0 1.8-.5 3-.4 1 .1 1.9.4 2.6.6z"/></svg>'
+          drop = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.8s7 8.2 7 12.4A7 7 0 1 1 5 15.2C5 11 12 2.8 12 2.8z"/></svg>'
+          scale = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.2 6.2a4.8 4.8 0 0 1 9.6 0h-2.2a2.6 2.6 0 0 0-5.2 0H7.2zM4 9h16a1.6 1.6 0 0 1 1.6 1.6V20a1.6 1.6 0 0 1-1.6 1.6H4A1.6 1.6 0 0 1 2.4 20V10.6A1.6 1.6 0 0 1 4 9zm8 3.1a3.1 3.1 0 1 0 0 6.2 3.1 3.1 0 0 0 0-6.2zm0 1.7a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8z" fill-rule="evenodd"/></svg>'
+          dumb = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3.2 8.4h2.3v7.2H3.2zM5.9 9.6h2.2v4.8H5.9zM8.5 11h7v2h-7zM15.9 9.6h2.2v4.8h-2.2zM18.5 8.4h2.3v7.2h-2.3z"/></svg>'
+          pill = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.3 9.1a3.9 3.9 0 0 0 0 5.8l1.9 1.9a3.9 3.9 0 0 0 5.8 0l1.8-1.8-7.7-7.7-1.8 1.8zm8.5-1.1l1.8 1.8a3.9 3.9 0 0 1 0 5.8l-.4.4-5.8-5.8.4-.4a3.9 3.9 0 0 1 5.8 0z"/></svg>'
 
+          new_nav = (
+              '<button class="nav-btn active" data-tab="home" onclick="switchTab(\'home\',this)">' + '<span class="nav-icon">' + house + '</span><span class="nav-label">Home</span></button>\n'
+              '    <button class="nav-btn" data-tab="log" onclick="switchTab(\'log\',this)">' + '<span class="nav-icon">' + apple + '</span><span class="nav-label">Food</span></button>\n'
+              '    <button class="nav-btn" data-tab="water" onclick="switchTab(\'water\',this)">' + '<span class="nav-icon">' + drop + '</span><span class="nav-label">Water</span></button>\n'
+              '    <button class="nav-btn" data-tab="weight" onclick="switchTab(\'weight\',this)">' + '<span class="nav-icon">' + scale + '</span><span class="nav-label">Weight</span></button>\n'
+              '    <button class="nav-btn" data-tab="workouts" onclick="switchTab(\'workouts\',this)">' + '<span class="nav-icon">' + dumb + '</span><span class="nav-label">Gym</span></button>\n'
+              '    <button class="nav-btn" data-tab="pills" onclick="switchTab(\'pills\',this)">' + '<span class="nav-icon">' + pill + '</span><span class="nav-label">Pills</span></button>'
+          )
+          t = t[:start] + new_nav + t[end:]
+          if t.count('class="nav-icon"') < 6:
+              raise SystemExit('nav rewrite failed')
           p.write_text(t)
           sw = Path('sw.js').read_text()
-          for a,b in [('ditty-v14','ditty-v15'),('ditty-v13','ditty-v15'),('ditty-v12','ditty-v15')]:
+          for a,b in [('ditty-v15','ditty-v16'),('ditty-v14','ditty-v16'),('ditty-v13','ditty-v16')]:
               if a in sw:
                   sw = sw.replace(a,b); break
           Path('sw.js').write_text(sw)
-          print('done')
+          print('ok')
           PY
       - name: Commit and push
         run: |
@@ -62,5 +70,5 @@ jobs:
           git config user.email "43458916+cditt@users.noreply.github.com"
           git add index.html sw.js
           if git diff --cached --quiet; then echo no change; exit 0; fi
-          git commit -m "Replace generic tab emojis with food/gym/scale icons"
+          git commit -m "Make bottom nav icons bigger, filled, higher contrast"
           git push
