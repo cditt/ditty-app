@@ -35,7 +35,7 @@ body{font-family:'Courier Prime',monospace;background-color:#f0dca8;background-i
 .bottom-nav{background:#1a0d00;display:flex;border-top:3px solid #b81c1c;flex-shrink:0;padding-bottom:env(safe-area-inset-bottom);position:sticky;bottom:0;z-index:100;}
 .nav-btn{flex:1;background:none;border:none;padding:8px 1px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:#6b5030;font-family:'Special Elite',cursive;min-height:50px;}
 .nav-btn.active{color:#e02020;}
-.nav-icon{font-size:13px;line-height:1;}
+.nav-icon{font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;width:20px;height:20px;}.nav-icon svg{display:block;width:20px;height:20px;}
 .nav-label{font-size:6px;letter-spacing:1px;text-transform:uppercase;}
 .section-title{font-family:'Special Elite',cursive;font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#7a1010;border-bottom:1px solid #2a1600;padding-bottom:5px;margin-bottom:10px;}
 .card{background:#fdf6e0;border:2px solid #2a1600;padding:12px;margin-bottom:10px;position:relative;}
@@ -891,12 +891,12 @@ label{font-family:'Special Elite',cursive;font-size:11px;letter-spacing:2px;text
   </div><!-- end .main -->
 
   <div class="bottom-nav">
-    <button class="nav-btn active" data-tab="home" onclick="switchTab('home',this)"><span class="nav-icon">&#127968;</span><span class="nav-label">Home</span></button>
-    <button class="nav-btn" data-tab="log" onclick="switchTab('log',this)"><span class="nav-icon">&#128172;</span><span class="nav-label">Log</span></button>
-    <button class="nav-btn" data-tab="water" onclick="switchTab('water',this)"><span class="nav-icon">&#128167;</span><span class="nav-label">Water</span></button>
-    <button class="nav-btn" data-tab="weight" onclick="switchTab('weight',this)"><span class="nav-icon">&#9878;&#65039;</span><span class="nav-label">Weight</span></button>
-    <button class="nav-btn" data-tab="workouts" onclick="switchTab('workouts',this)"><span class="nav-icon">&#x1F94A;</span><span class="nav-label">Gym</span></button>
-    <button class="nav-btn" data-tab="pills" onclick="switchTab('pills',this)"><span class="nav-icon">&#128138;</span><span class="nav-label">Pills</span></button>
+    <button class="nav-btn active" data-tab="home" onclick="switchTab('home',this)"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5L12 4l8 7.5"/><path d="M6.5 10.5V20h11V10.5"/><path d="M10 20v-6h4v6"/></svg></span><span class="nav-label">Home</span></button>
+    <button class="nav-btn" data-tab="log" onclick="switchTab('log',this)"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16"/><path d="M6 8h4"/><path d="M16.5 5l2 3-4.5 12"/><path d="M15.2 12.5h5"/></svg></span><span class="nav-label">Food</span></button>
+    <button class="nav-btn" data-tab="water" onclick="switchTab('water',this)"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 7.2 6 11.2A6 6 0 1 1 6 14.2C6 10.2 12 3 12 3z"/></svg></span><span class="nav-label">Water</span></button>
+    <button class="nav-btn" data-tab="weight" onclick="switchTab('weight',this)"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/><circle cx="12" cy="15" r="2.2"/><path d="M12 13v-1.5"/></svg></span><span class="nav-label">Weight</span></button>
+    <button class="nav-btn" data-tab="workouts" onclick="switchTab('workouts',this)"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9v6"/><path d="M17 9v6"/><path d="M5 10v4"/><path d="M19 10v4"/><path d="M7 12h10"/><rect x="2.5" y="8.5" width="2.2" height="7" rx="0.6"/><rect x="19.3" y="8.5" width="2.2" height="7" rx="0.6"/></svg></span><span class="nav-label">Gym</span></button>
+    <button class="nav-btn" data-tab="pills" onclick="switchTab('pills',this)"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8.2" y="3.2" width="7.6" height="17.6" rx="3.8" transform="rotate(45 12 12)"/><path d="M8.2 15.8l7.6-7.6"/></svg></span><span class="nav-label">Pills</span></button>
   </div>
 </div>
 
