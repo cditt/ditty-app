@@ -8,24 +8,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Change rest to 45 seconds
+      - name: Rest 45s
         run: |
           python3 << 'PY'
           from pathlib import Path
           p = Path('index.html')
           t = p.read_text()
-          if 'var REST_DURATION=90;' not in t:
-              raise SystemExit('REST_DURATION missing')
-          t = t.replace('var REST_DURATION=90;// seconds — standard rest between sets', 'var REST_DURATION=45;// seconds — rest between sets', 1)
-          t = t.replace("notes:'90 sec rest on compounds, 60 sec on accessories.'", "notes:'45 sec rest on compounds, 60 sec on accessories.'", 1)
+          n1 = t.count('var REST_DURATION=90;')
+          t = t.replace('var REST_DURATION=90;', 'var REST_DURATION=45;')
+          t = t.replace('90 sec rest on compounds', '45 sec rest on compounds')
+          if 'var REST_DURATION=45;' not in t:
+              raise SystemExit('duration not updated')
           p.write_text(t)
-          sw = Path('sw.js')
-          swt = sw.read_text()
-          for a,b in [('ditty-v10','ditty-v11'),('ditty-v9','ditty-v11'),('ditty-v8','ditty-v11')]:
-              if a in swt:
-                  swt = swt.replace(a,b); break
-          sw.write_text(swt)
-          print('patched ok')
+          print('replaced', n1)
+          sw = Path('sw.js').read_text()
+          for a,b in [('ditty-v11','ditty-v12'),('ditty-v10','ditty-v12'),('ditty-v9','ditty-v12')]:
+              if a in sw:
+                  sw = sw.replace(a,b); break
+          Path('sw.js').write_text(sw)
           PY
       - name: Commit and push
         run: |
@@ -33,5 +33,5 @@ jobs:
           git config user.email "43458916+cditt@users.noreply.github.com"
           git add index.html sw.js
           if git diff --cached --quiet; then echo no change; exit 0; fi
-          git commit -m "Change rest timer from 90s to 45s"
+          git commit -m "Set rest timer to 45 seconds"
           git push
