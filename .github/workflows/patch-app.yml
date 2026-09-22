@@ -8,29 +8,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Refresh button
+      - name: Stop auto open workout
         run: |
           python3 << 'PY'
           from pathlib import Path
           p = Path('index.html')
           t = p.read_text()
-          old = '<span id="force-sync-btn" onclick="handleSyncBtn()" style="cursor:pointer;color:#f0dca8;text-decoration:underline;font-size:9px;">sync</span>'
-          new = old + ' &middot; <span id="force-reload-btn" onclick="hardReload()" style="cursor:pointer;color:#f0dca8;text-decoration:underline;font-size:9px;">refresh</span>'
-          if 'force-reload-btn' in t:
-              print('btn already there')
-          elif old not in t:
-              raise SystemExit('sync btn missing')
+          old = "    if(!body)return;\n    body.classList.add('open');"
+          new = "    if(!body)return;\n    /* stay collapsed until tap */"
+          if old not in t:
+              if 'stay collapsed until tap' in t:
+                  print('openToday already patched')
+              else:
+                  raise SystemExit('openToday add-open missing')
           else:
               t = t.replace(old, new, 1)
-              print('btn added')
-          fn = "function hardReload(){try{if(navigator.serviceWorker){navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.update();}));}).then(function(){location.reload();}).catch(function(){location.reload();});return;}}catch(e){}location.reload();}\n"
-          if 'function hardReload(' not in t:
-              if 'function handleSyncBtn(){' not in t:
-                  raise SystemExit('handleSyncBtn missing')
-              t = t.replace('function handleSyncBtn(){', fn + 'function handleSyncBtn(){', 1)
+              print('openToday patched')
+          old2 = "if(name==='workouts')setTimeout(openToday,350);"
+          new2 = "if(name==='workouts')setTimeout(function(){injectRuleStrips();wireSetBtns();},350);"
+          if old2 in t:
+              t = t.replace(old2, new2, 1)
+              print('hook patched')
+          else:
+              print('hook already gone or different')
           p.write_text(t)
           sw = Path('sw.js').read_text()
-          for a,b in [('ditty-v19','ditty-v20'),('ditty-v18','ditty-v20'),('ditty-v17','ditty-v20')]:
+          for a,b in [('ditty-v20','ditty-v21'),('ditty-v19','ditty-v21'),('ditty-v18','ditty-v21')]:
               if a in sw:
                   sw = sw.replace(a,b); break
           Path('sw.js').write_text(sw)
@@ -42,5 +45,5 @@ jobs:
           git config user.email "43458916+cditt@users.noreply.github.com"
           git add index.html sw.js
           if git diff --cached --quiet; then echo no change; exit 0; fi
-          git commit -m "Add header refresh button next to sync"
+          git commit -m "Do not auto-expand today's workout; tap to open"
           git push
