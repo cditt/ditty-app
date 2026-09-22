@@ -3619,7 +3619,10 @@ function renderWorkoutProgram(prog,autoExpand){
     else{html+='<div style="font-family:\'Courier Prime\',monospace;font-size:10px;color:#7a6040;">'+day.exercises.length+' exercises</div>';}
     html+='</div>';
     if(day.notes&&!day.rest){
-      html+='<div style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#7a1010;padding:6px 12px;background:#fdf0f0;border-bottom:1px solid #d9c484;letter-spacing:0.5px;">&#9888; '+day.notes+'</div>';
+      var missed=!wasCompleted&&isPast;
+      var noteBg=missed?'#fdf0f0':'#f7ecd0';
+      var noteColor=missed?'#7a1010':'#7a6040';
+      html+='<div style="font-family:\'Courier Prime\',monospace;font-size:9px;color:'+noteColor+';padding:6px 12px;background:'+noteBg+';border-bottom:1px solid #d9c484;letter-spacing:0.5px;">&#9888; '+day.notes+'</div>';
     }
     if(!day.rest){
       // Always force-open today regardless of autoExpand — non-negotiable
