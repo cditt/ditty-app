@@ -2211,7 +2211,7 @@ function openTodayWorkout(){
   // Close all first, then open today's
   for(var j=0;j<dayBodies.length;j++)dayBodies[j].classList.remove('open');
   var target=dayBodies[todayIdx];
-  if(target){
+  if(false && target){
     target.classList.add('open');
     // Inject rule strip if not already present
     if(!target.querySelector('.rule-strip')){
@@ -3633,7 +3633,7 @@ function renderWorkoutProgram(prog,autoExpand){
     if(!day.rest){
       // Always force-open today regardless of autoExpand — non-negotiable
       var isAlreadyOpen=document.getElementById('day-body-'+prog+'-'+d)&&document.getElementById('day-body-'+prog+'-'+d).classList.contains('open');
-      var bodyOpen=(isToday||isAlreadyOpen)?' open':'';
+      var bodyOpen=isAlreadyOpen?' open':'';
       html+='<div class="day-body'+bodyOpen+'" id="day-body-'+prog+'-'+d+'">';
       // Unified rules strip — always visible in every day
       html+='<div style="font-family:\'Courier Prime\',monospace;font-size:9px;color:#7a6040;padding:5px 8px;border-bottom:1px dashed #d9c484;line-height:1.7;">';
