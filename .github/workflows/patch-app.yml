@@ -1,0 +1,55 @@
+name: patch-app
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index.html
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          t = p.read_text()
+          a = "  {id:7,name:'Retatrutide',dose:'',taken:false,daily:false,injDay:0}\n];"
+          b = "  {id:7,name:'Retatrutide',dose:'',taken:false,daily:false,injDay:0},\n  {id:8,name:'Aged Garlic AM',dose:'1200mg',taken:false,daily:true,injDay:null},\n  {id:9,name:'Aged Garlic PM',dose:'1200mg',taken:false,daily:true,injDay:null}\n];"
+          if a not in t:
+              raise SystemExit('default pills pattern missing')
+          t = t.replace(a, b, 1)
+          a = "    {name:'Retatrutide',   dose:'',             daily:false, injDay:0}\n  ];"
+          b = "    {name:'Retatrutide',   dose:'',             daily:false, injDay:0},\n    {name:'Aged Garlic AM',dose:'1200mg',       daily:true,  injDay:null},\n    {name:'Aged Garlic PM',dose:'1200mg',       daily:true,  injDay:null}\n  ];"
+          if a not in t:
+              raise SystemExit('required pills pattern missing')
+          t = t.replace(a, b, 1)
+          a = """            <button onclick=\"selectActivity('Walking')\" id=\"act-Walking\" class=\"act-btn\">&#127939; Walking</button>\n            <button onclick=\"selectActivity('Cycling')\" id=\"act-Cycling\" class=\"act-btn\">&#128692; Cycling</button>"""
+          b = """            <button onclick=\"selectActivity('Walking')\" id=\"act-Walking\" class=\"act-btn\">&#127939; Walking</button>\n            <button onclick=\"selectActivity('Treadmill')\" id=\"act-Treadmill\" class=\"act-btn\">Treadmill</button>\n            <button onclick=\"selectActivity('Cycling')\" id=\"act-Cycling\" class=\"act-btn\">&#128692; Cycling</button>"""
+          if a not in t:
+              raise SystemExit('activity buttons pattern missing')
+          t = t.replace(a, b, 1)
+          a = '            <button onclick="selectDuration(30)" id="dur-30" class="dur-btn">30</button>'
+          b = '            <button onclick="selectDuration(10)" id="dur-10" class="dur-btn">10</button>\n            <button onclick="selectDuration(15)" id="dur-15" class="dur-btn">15</button>\n            <button onclick="selectDuration(30)" id="dur-30" class="dur-btn">30</button>'
+          if a not in t:
+              raise SystemExit('duration buttons pattern missing')
+          t = t.replace(a, b, 1)
+          a = "  'Hiking':6,'Golf':4,'Disc Golf':4,'Walking':3.5,'Cycling':8,'Swimming':8"
+          b = "  'Hiking':6,'Golf':4,'Disc Golf':4,'Walking':3.5,'Treadmill':4,'Cycling':8,'Swimming':8"
+          if a not in t:
+              raise SystemExit('MET pattern missing')
+          t = t.replace(a, b, 1)
+          p.write_text(t)
+          print('patched ok')
+          PY
+      - name: Commit and push
+        run: |
+          git config user.name "cditt"
+          git config user.email "43458916+cditt@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "no change"
+            exit 0
+          fi
+          git commit -m "Add aged garlic AM/PM, treadmill, 10/15 min durations"
+          git push
