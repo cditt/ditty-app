@@ -1803,17 +1803,13 @@ function copyBinId(){
 }
 
 function confirmReset(){
-  if(confirm('Reset ALL data? This cannot be undone.')){
-    var bid=S.jsonbinBinId;
-    S={calories:0,protein:0,carbs:0,fat:0,burned:0,water:0,weight:null,goalWeight:205,log:[],weightHistory:[],lastReset:new Date().toDateString(),setupDone:true,pills:JSON.parse(JSON.stringify(DEFAULT_PILLS)),savedFoods:[],userAge:44,userHeight:71,notifEnabled:S.notifEnabled,jsonbinBinId:bid,calHistory:{},proteinGoal:180,carbsGoal:150,fatGoal:70,workoutHistory:[],customPrograms:[],milestonesHit:{},currentPlanKey:'current',workoutSets:{}};
-    workoutSets={};
-    // CRITICAL: Do NOT call save() — it calls pushSync() and would push zeroed state to cloud
-    // Write locally only; cloud keeps old data until next real log
-    try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
-    render();closeSettings();
-    showBanner('Daily data reset. Cloud data preserved until next log.',false);
-    alert('Reset complete.');
-  }
+  if(!confirm('Clear today only? Weight and workout history stay.'))return;
+  S.calories=0;S.protein=0;S.carbs=0;S.fat=0;S.burned=0;S.water=0;S.steps=0;S.log=[];
+  S.lastReset=new Date().toDateString();
+  if(S.pills){for(var ri=0;ri<S.pills.length;ri++){S.pills[ri].taken=false;}}
+  try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+  render();closeSettings();
+  showBanner('Today cleared. Weight and workouts kept.',false);
 }
 
 /* ── SCANNER ── */
@@ -2269,7 +2265,6 @@ function isMeaningfullyPopulated(d){
 
 function pushSync(isForce){
   // HARD BLOCK: mirror devices can NEVER write to cloud
-  // Double-check both localStorage role AND device type
   var isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   var role=localStorage.getItem('deviceRole')||(isMobile?'primary':'mirror');
   if(role==='mirror'||!isMobile){
@@ -2286,15 +2281,45 @@ function pushSync(isForce){
   }
   syncLock=true;
   S.workoutSets=workoutSets;
-  S.lastModified=Date.now();
-  try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
   var ss=document.getElementById('sync-status');
   if(ss)ss.textContent='pushing...';
-  console.log('[SYNC] Push start ts='+S.lastModified+' logCount='+((S.log&&S.log.length)||0));
-  fetch(JSONBIN_BASE+'b/'+S.jsonbinBinId,{
-    method:'PUT',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(S)
+  function mergeList(a,b){
+    var out=[], seen={};
+    function add(list){
+      for(var n=0;n<(list||[]).length;n++){
+        var k='';
+        try{k=JSON.stringify(list[n]);}catch(e){k=String(n);}
+        if(seen[k])continue;
+        seen[k]=1;out.push(list[n]);
+      }
+    }
+    add(a);add(b);return out;
+  }
+  fetch(JSONBIN_BASE+'b/'+S.jsonbinBinId+'/latest').then(function(r){return r.json();}).then(function(data){
+    var remote=data&&data.record;
+    if(!remote||typeof remote!=='object'||Array.isArray(remote)) throw new Error('no remote');
+    S.weightHistory=mergeList(S.weightHistory, remote.weightHistory);
+    S.workoutHistory=mergeList(S.workoutHistory, remote.workoutHistory);
+    var cal={};
+    var rk=remote.calHistory||{}, lk=S.calHistory||{};
+    for(var ck in rk){if(Object.prototype.hasOwnProperty.call(rk,ck))cal[ck]=rk[ck];}
+    for(var ck2 in lk){if(Object.prototype.hasOwnProperty.call(lk,ck2))cal[ck2]=lk[ck2];}
+    S.calHistory=cal;
+    if((S.weight==null||S.weight==='')&&remote.weight!=null&&remote.weight!=='')S.weight=remote.weight;
+    var sets={};
+    var rs=remote.workoutSets||{}, ls=S.workoutSets||{};
+    for(var sk in rs){if(Object.prototype.hasOwnProperty.call(rs,sk))sets[sk]=rs[sk];}
+    for(var sk2 in ls){if(Object.prototype.hasOwnProperty.call(ls,sk2)&&ls[sk2]!=null)sets[sk2]=ls[sk2];}
+    S.workoutSets=sets;workoutSets=sets;
+    if(remote.personalRecords)S.personalRecords=Object.assign({}, remote.personalRecords, S.personalRecords||{});
+    S.lastModified=Date.now();
+    try{localStorage.setItem('ditty_v3',JSON.stringify(S));}catch(e){}
+    console.log('[SYNC] Push merge weights='+((S.weightHistory&&S.weightHistory.length)||0)+' workouts='+((S.workoutHistory&&S.workoutHistory.length)||0));
+    return fetch(JSONBIN_BASE+'b/'+S.jsonbinBinId,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(S)
+    });
   }).then(function(){
     syncLock=false;
     if(ss)ss.textContent='pushed \u2713';
@@ -2305,7 +2330,7 @@ function pushSync(isForce){
     syncLock=false;
     if(ss)ss.textContent='push failed';
     if(isForce)showBanner('Push failed. Check internet.',true);
-    console.log('[SYNC] Push failed');
+    console.log('[SYNC] Push failed — cloud left unchanged');
   });
 }
 

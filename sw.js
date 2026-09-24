@@ -1,4 +1,4 @@
-var CACHE_NAME = 'ditty-v21';
+var CACHE_NAME = 'ditty-v22';
 var URLS_TO_CACHE = [
   '/ditty-app/',
   '/ditty-app/index.html',
@@ -38,7 +38,6 @@ self.addEventListener('activate', function(event) {
 self.addEventListener('fetch', function(event) {
   var url = event.request.url;
 
-  // Always network-first for HTML pages
   if (url.indexOf('.html') !== -1 || url.endsWith('/ditty-app/') || url.endsWith('/ditty-app')) {
     event.respondWith(
       fetch(event.request).then(function(networkResponse) {
@@ -52,9 +51,9 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Always go network-first for API calls
   if (url.indexOf('openai.com') !== -1 ||
       url.indexOf('jsonbin.io') !== -1 ||
+      url.indexOf('workers.dev') !== -1 ||
       url.indexOf('openfoodfacts.org') !== -1) {
     event.respondWith(
       fetch(event.request).catch(function() {
@@ -64,7 +63,6 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Cache-first for app shell
   event.respondWith(
     caches.match(event.request).then(function(response) {
       if (response) return response;
